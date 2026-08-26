@@ -128,7 +128,7 @@ export class MailboxService extends Reactive {
             }
             domain.push(["is_important", "=", true]);
         }
-        this.messages = await this.orm.searchRead(
+        const messages = await this.orm.searchRead(
             "mail.personal.mailbox",
             domain,
             [
@@ -157,6 +157,10 @@ export class MailboxService extends Reactive {
             ],
             { order: "date DESC, id DESC" }
         );
+        this.messages = messages.map((m) => ({
+            ...m,
+            body: markup(m.body || ""),
+        }));
         const attachmentIds = this.messages.flatMap((m) => m.attachment_ids || []);
         if (attachmentIds.length) {
             const attachments = await this.orm.read("ir.attachment", attachmentIds, ["id", "name", "mimetype", "datas"]);
