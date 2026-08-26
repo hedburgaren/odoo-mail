@@ -127,7 +127,8 @@
 // plain overlay items. Style those items as modal backdrops so the dialogs
 // are actually visible and centered.
 .o-overlay-item:has(.o-unified-composer),
-.o-overlay-item:has(.o-unified-record-picker) {
+.o-overlay-item:has(.o-unified-record-picker),
+.o-overlay-item:has(.o-unified-contact-creator) {
     position: fixed;
     inset: 0;
     width: 100%;
@@ -140,7 +141,8 @@
     padding: 1rem;
 
     .o-unified-composer,
-    .o-unified-record-picker {
+    .o-unified-record-picker,
+    .o-unified-contact-creator {
         width: 100%;
         max-width: 1200px;
         height: 90vh;
@@ -151,7 +153,8 @@
         overflow: hidden;
     }
 
-    .o-unified-record-picker {
+    .o-unified-record-picker,
+    .o-unified-contact-creator {
         height: auto;
         max-width: 500px;
         padding: 1rem;
