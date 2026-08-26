@@ -60,7 +60,7 @@ class MailComposeMessage(models.TransientModel):
             "auto_delete": True,
         }
         mail = self.env["mail.mail"].sudo().create(mail_values)
-        mail.send()
+        mail.send(raise_exception=True)
 
     def _save_sent_copy(self):
         """Create a copy of the sent message in the user's Inbox as read."""

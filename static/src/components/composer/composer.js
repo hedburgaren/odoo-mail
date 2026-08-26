@@ -329,6 +329,10 @@ export class Composer extends Component {
         for (const email of unknownEmails) {
             const partnerId = await this._createContactFromEmail(email);
             if (!partnerId) {
+                this.notification.add(
+                    `A contact is required to send to ${email}.`,
+                    { type: "warning" }
+                );
                 return null;
             }
             emailToPartner[email] = partnerId;
