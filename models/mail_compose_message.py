@@ -27,13 +27,40 @@ class MailComposeMessage(models.TransientModel):
 
     def _action_send_mail(self, auto_commit=False):
         """After sending, save a copy to the sender's personal Sent folder."""
-        result = super()._action_send_mail(auto_commit=auto_commit)
-        for composer in self:
-            if composer.composition_mode == "personal_email":
-                composer._save_sent_copy()
-            elif composer.model == "mail.personal.mailbox" and composer.res_id:
-                composer._save_sent_copy()
-        return result
+        personal = self.filtered(lambda c: c.composition_mode == "personal_email")
+        for composer in personal:
+            composer._action_send_personal_email()
+            composer._save_sent_copy()
+        regular = self - personal
+        if regular:
+            result = super(MailComposeMessage, regular)._action_send_mail(auto_commit=auto_commit)
+            for composer in regular:
+                if composer.model == "mail.personal.mailbox" and composer.res_id:
+                    composer._save_sent_copy()
+            return result
+        return self.env["mail.mail"].sudo(), self.env["mail.message"]
+
+    def _action_send_personal_email(self):
+        """Send a personal email directly through mail.mail."""
+        self.ensure_one()
+        cc_emails = [e.strip().lower() for e in (self.email_cc or "").split(",") if e.strip()]
+        bcc_emails = [e.strip().lower() for e in (self.email_bcc or "").split(",") if e.strip()]
+        to_partners = self.partner_ids.filtered(
+            lambda p: p.email and p.email.lower() not in cc_emails and p.email.lower() not in bcc_emails
+        )
+        if not to_partners and not cc_emails:
+            raise UserError(_("No recipient found."))
+        mail_values = {
+            "subject": self.subject or _("(No subject)"),
+            "body_html": self.body or "",
+            "email_from": self.email_from or self.env.user.email_formatted,
+            "recipient_ids": [(6, 0, to_partners.ids)],
+            "email_cc": self.email_cc or "",
+            "attachment_ids": [(6, 0, self.attachment_ids.ids)],
+            "auto_delete": True,
+        }
+        mail = self.env["mail.mail"].sudo().create(mail_values)
+        mail.send()
 
     def _save_sent_copy(self):
         """Create a copy of the sent message in the user's Inbox as read."""

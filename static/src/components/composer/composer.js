@@ -140,15 +140,21 @@ export class Composer extends Component {
     }
 
     async _doSend(options = {}) {
-        const composerValues = await this._buildComposerValues(options);
-        if (!composerValues) {
-            return;
+        try {
+            const composerValues = await this._buildComposerValues(options);
+            if (!composerValues) {
+                return;
+            }
+            const composerId = await this._createComposer(composerValues);
+            await this.orm.call("mail.compose.message", "action_send_mail", [[composerId]]);
+            await this._cleanupAfterSend();
+            this.notification.add("Email sent.", { type: "success" });
+            this._close();
+        } catch (error) {
+            console.error(error);
+            const message = error?.message || "Failed to send email.";
+            this.notification.add(message, { type: "danger" });
         }
-        const composerId = await this._createComposer(composerValues);
-        await this.orm.call("mail.compose.message", "action_send_mail", [[composerId]]);
-        await this._cleanupAfterSend();
-        this.notification.add("Email sent.", { type: "success" });
-        this._close();
     }
 
     async _doScheduleSend(scheduledDate) {
