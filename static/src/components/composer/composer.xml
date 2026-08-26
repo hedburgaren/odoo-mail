@@ -66,12 +66,15 @@
                 <button class="btn btn-secondary" t-on-click="onDiscard">Discard</button>
                 <button class="btn btn-outline-secondary" t-on-click="onSaveDraft">Save Draft</button>
                 <div class="btn-group">
-                    <button class="btn btn-primary" t-on-click="onSend">Send</button>
-                    <button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                    <button type="button" class="btn btn-primary" t-on-click="onSend" t-att-disabled="state.isSending">
+                        <span t-if="state.isSending" class="spinner-border spinner-border-sm me-1"/>
+                        Send
+                    </button>
+                    <button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" t-att-disabled="state.isSending">
                         <span class="visually-hidden">Toggle Dropdown</span>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><button class="dropdown-item" t-on-click="onSend">Send now</button></li>
+                        <li><button type="button" class="dropdown-item" t-on-click="onSend">Send now</button></li>
                         <li><button class="dropdown-item" t-on-click="onScheduleSend">Schedule Send</button></li>
                         <li><button class="dropdown-item" t-on-click="onSendAndLog">Send and log to...</button></li>
                     </ul>

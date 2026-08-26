@@ -49,6 +49,7 @@ export class Composer extends Component {
             templates: [],
             selectedTemplateId: null,
             showCcBcc: Boolean(this.props.defaultCc?.length || this.props.defaultBcc?.length),
+            isSending: false,
         });
         this.editor = null;
         this._loadTemplates();
@@ -120,6 +121,10 @@ export class Composer extends Component {
     }
 
     async onSend() {
+        console.log("[Composer] onSend clicked");
+        if (this.state.isSending) {
+            return;
+        }
         await this._doSend();
     }
 
@@ -140,20 +145,28 @@ export class Composer extends Component {
     }
 
     async _doSend(options = {}) {
+        console.log("[Composer] _doSend start");
+        this.state.isSending = true;
         try {
             const composerValues = await this._buildComposerValues(options);
+            console.log("[Composer] composerValues", composerValues);
             if (!composerValues) {
+                console.log("[Composer] _doSend aborted: no composerValues");
                 return;
             }
             const composerId = await this._createComposer(composerValues);
+            console.log("[Composer] created composer id", composerId);
             await this.orm.call("mail.compose.message", "action_send_mail", [[composerId]]);
+            console.log("[Composer] action_send_mail returned");
             await this._cleanupAfterSend();
             this.notification.add("Email sent.", { type: "success" });
             this._close();
         } catch (error) {
-            console.error(error);
+            console.error("[Composer] _doSend error", error);
             const message = error?.message || "Failed to send email.";
             this.notification.add(message, { type: "danger" });
+        } finally {
+            this.state.isSending = false;
         }
     }
 
@@ -220,7 +233,9 @@ export class Composer extends Component {
             ...this.state.cc,
             ...this.state.bcc,
         ])];
+        console.log("[Composer] resolving partners for", allEmails);
         const emailToPartner = await this._resolveAllPartners(allEmails);
+        console.log("[Composer] emailToPartner", emailToPartner);
         if (!emailToPartner) {
             return null;
         }
@@ -341,6 +356,7 @@ export class Composer extends Component {
     }
 
     _createContactFromEmail(email) {
+        console.log("[Composer] opening ContactCreator for", email);
         return new Promise((resolve) => {
             this.env.services.dialog.add(ContactCreator, { email, onCreate: resolve }, {
                 title: "Create Contact",
