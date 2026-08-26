@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_mail_personal_mailbox" model="ir.actions.act_window">
+        <field name="name">Personal Mailbox</field>
+        <field name="res_model">mail.personal.mailbox</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Your personal inbox is empty
+            </p>
+            <p>
+                Emails fetched from your personal IMAP server will appear here.
+            </p>
+        </field>
+    </record>
+
+    <record id="view_mail_personal_mailbox_tree" model="ir.ui.view">
+        <field name="name">mail.personal.mailbox.list</field>
+        <field name="model">mail.personal.mailbox</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="state" invisible="1"/>
+                <field name="is_starred" widget="boolean_toggle"/>
+                <field name="is_important" widget="boolean_toggle"/>
+                <field name="email_from"/>
+                <field name="name"/>
+                <field name="body_text"/>
+                <field name="folder_id"/>
+                <field name="date"/>
+                <field name="attachment_ids" widget="many2many_tags"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_mail_personal_mailbox_form" model="ir.ui.view">
+        <field name="name">mail.personal.mailbox.form</field>
+        <field name="model">mail.personal.mailbox</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_mark_read" string="Mark Read" type="object" invisible="state != 'unread'"/>
+                    <button name="action_mark_unread" string="Mark Unread" type="object" invisible="state == 'unread'"/>
+                    <button name="action_toggle_starred" string="Toggle Star" type="object"/>
+                    <button name="action_move_to_trash" string="Delete" type="object" confirm="This will permanently delete the email."/>
+                    <button name="action_reply" string="Reply" type="object"/>
+                    <button name="action_reply_all" string="Reply All" type="object"/>
+                    <button name="action_forward" string="Forward" type="object"/>
+                    <button name="action_create_lead" string="Create Lead" type="object"/>
+                    <button name="action_create_task" string="Create Task" type="object"/>
+                    <button name="action_book_meeting" string="Book Meeting" type="object"/>
+                    <button name="action_view_partner" string="View Contact" type="object"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="email_from"/>
+                            <field name="email_to"/>
+                            <field name="email_cc"/>
+                            <field name="email_bcc"/>
+                            <field name="reply_to"/>
+                        </group>
+                        <group>
+                            <field name="date"/>
+                            <field name="folder_id"/>
+                            <field name="state"/>
+                            <field name="is_starred"/>
+                            <field name="is_important"/>
+                            <field name="partner_id"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Body">
+                            <field name="body" widget="html" options="{'style-inline': true}"/>
+                        </page>
+                        <page string="Thread">
+                            <field name="parent_id"/>
+                            <field name="child_ids"/>
+                        </page>
+                        <page string="CRM &amp; Project">
+                            <group>
+                                <field name="crm_lead_id"/>
+                                <field name="project_task_id"/>
+                                <field name="calendar_event_id"/>
+                            </group>
+                        </page>
+                        <page string="Attachments">
+                            <field name="attachment_ids" widget="many2many_binary"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_mail_personal_mailbox_search" model="ir.ui.view">
+        <field name="name">mail.personal.mailbox.search</field>
+        <field name="model">mail.personal.mailbox</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="email_from"/>
+                <field name="email_to"/>
+                <field name="body_text"/>
+                <filter string="Unread" name="unread" domain="[('state', '=', 'unread')]"/>
+                <filter string="Read" name="read" domain="[('state', '=', 'read')]"/>
+                <filter string="Starred" name="starred" domain="[('is_starred', '=', True)]"/>
+                <filter string="Important" name="important" domain="[('is_important', '=', True)]"/>
+                <filter string="Inbox" name="inbox" domain="[('folder_id.folder_type', '=', 'inbox')]"/>
+                <filter string="Archived" name="archived" domain="[('state', '=', 'archived')]"/>
+                <filter string="Drafts" name="drafts" domain="[('state', '=', 'draft')]"/>
+                <filter string="With Attachments" name="attachments" domain="[('attachment_ids', '!=', False)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Folder" name="group_folder" context="{'group_by': 'folder_id'}"/>
+                    <filter string="Sender" name="group_sender" context="{'group_by': 'email_from'}"/>
+                    <filter string="Date" name="group_date" context="{'group_by': 'date:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_mail_personal_mailbox_server_mark_read" model="ir.actions.server">
+        <field name="name">Mark as Read</field>
+        <field name="model_id" ref="model_mail_personal_mailbox"/>
+        <field name="binding_model_id" ref="model_mail_personal_mailbox"/>
+        <field name="state">code</field>
+        <field name="code">records.action_mark_read()</field>
+    </record>
+
+    <record id="action_mail_personal_mailbox_server_mark_unread" model="ir.actions.server">
+        <field name="name">Mark as Unread</field>
+        <field name="model_id" ref="model_mail_personal_mailbox"/>
+        <field name="binding_model_id" ref="model_mail_personal_mailbox"/>
+        <field name="state">code</field>
+        <field name="code">records.action_mark_unread()</field>
+    </record>
+
+    <record id="action_mail_personal_mailbox_server_move_trash" model="ir.actions.server">
+        <field name="name">Delete</field>
+        <field name="model_id" ref="model_mail_personal_mailbox"/>
+        <field name="binding_model_id" ref="model_mail_personal_mailbox"/>
+        <field name="state">code</field>
+        <field name="code">records.action_move_to_trash()</field>
+    </record>
+
+    <record id="action_mail_personal_mailbox_server_create_lead" model="ir.actions.server">
+        <field name="name">Create Lead</field>
+        <field name="model_id" ref="model_mail_personal_mailbox"/>
+        <field name="binding_model_id" ref="model_mail_personal_mailbox"/>
+        <field name="state">code</field>
+        <field name="code">
+if len(records) == 1:
+    action = records.action_create_lead()
+else:
+    raise UserError("Please select a single email.")
+        </field>
+    </record>
+</odoo>

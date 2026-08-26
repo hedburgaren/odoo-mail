@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="unified_workspace.EmailTags">
+        <div
+            class="o-unified-email-tags form-control d-flex flex-wrap align-items-center gap-1"
+            t-on-click="onContainerClick">
+            <t t-foreach="state.emails" t-as="email" t-key="email">
+                <span class="badge bg-primary d-inline-flex align-items-center">
+                    <t t-esc="email"/>
+                    <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.5rem;" t-on-click.stop="() => removeEmail(email)"/>
+                </span>
+            </t>
+            <input
+                t-ref="input"
+                type="text"
+                class="o-unified-email-tags-input flex-grow-1 border-0 p-0"
+                t-att-placeholder="props.placeholder"
+                t-on-keydown="onInputKeydown"
+                t-on-blur="onInputBlur"
+                t-on-input="onInput"
+                t-on-paste="onPaste"/>
+            <div t-if="state.suggestions.length or state.isLoading" class="o-unified-email-tags-suggestions dropdown-menu show w-100 mt-1">
+                <div t-if="state.isLoading" class="dropdown-item-text text-muted">
+                    <span class="spinner-border spinner-border-sm me-1"/> Searching...
+                </div>
+                <t t-foreach="state.suggestions" t-as="suggestion" t-key="suggestion.id">
+                    <button type="button" class="dropdown-item"
+                        t-att-class="{ 'active': suggestion_index === state.selectedIndex }"
+                        t-on-mousedown.prevent="() => selectSuggestion(suggestion)">
+                        <span class="me-2" t-esc="suggestion.name"/>
+                        <span class="text-muted small" t-esc="suggestion.email"/>
+                    </button>
+                </t>
+            </div>
+        </div>
+    </t>
+</templates>

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="unified_workspace.AttachmentList">
+        <div t-if="props.attachments.length" class="o-unified-attachment-list mt-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="m-0">Attachments</h6>
+                <button t-if="hasLinkedRecord" class="btn btn-sm btn-outline-primary" t-on-click="onSaveToRecord">
+                    <i class="fa fa-save me-1"/> Save to record
+                </button>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <t t-foreach="props.attachments" t-as="att" t-key="att.id">
+                    <div class="card" style="width: 180px;">
+                        <div class="card-body p-2">
+                            <div t-if="isImage(att)" class="mb-2 text-center" style="cursor: pointer;" t-on-click="() => onOpenPreview(att)">
+                                <img t-att-src="getImageUrl(att)" class="img-fluid" style="max-height: 100px;" alt="Preview"/>
+                            </div>
+                            <div t-elif="isPdf(att)" class="mb-2 text-center text-muted">
+                                <i class="fa fa-file-pdf-o fa-3x"/>
+                            </div>
+                            <div t-else="" class="mb-2 text-center text-muted">
+                                <i class="fa fa-file-o fa-3x"/>
+                            </div>
+                            <div class="small text-truncate" t-att-title="att.name">
+                                <t t-esc="att.name"/>
+                            </div>
+                            <button t-if="isImage(att)" class="btn btn-sm btn-outline-secondary mt-2 w-100" t-on-click="() => onOpenPreview(att)">
+                                <i class="fa fa-eye me-1"/> Preview
+                            </button>
+                            <a t-elif="isPdf(att)" t-att-href="getPreviewUrl(att)" target="_blank" class="btn btn-sm btn-outline-secondary mt-2 w-100">
+                                <i class="fa fa-eye me-1"/> Preview
+                            </a>
+                            <a t-att-href="getDownloadUrl(att)" target="_blank" class="btn btn-sm btn-outline-primary mt-2 w-100">
+                                <i class="fa fa-download me-1"/> Download
+                            </a>
+                        </div>
+                    </div>
+                </t>
+            </div>
+        </div>
+        <div t-if="state.previewAttachment" class="modal d-block o_technical_modal" tabindex="-1" t-on-click="onClosePreview">
+            <div class="modal-dialog modal-lg modal-dialog-centered" t-on-click.stop="">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" t-esc="state.previewAttachment.name"/>
+                        <button type="button" class="btn-close" t-on-click="onClosePreview" aria-label="Close"/>
+                    </div>
+                    <div class="modal-body text-center">
+                        <img t-if="isImage(state.previewAttachment)" t-att-src="getImageUrl(state.previewAttachment)" class="img-fluid" alt="Preview"/>
+                        <iframe t-elif="isPdf(state.previewAttachment)" t-att-src="getPreviewUrl(state.previewAttachment)" class="w-100" style="height: 70vh; border: none;"/>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </t>
+</templates>

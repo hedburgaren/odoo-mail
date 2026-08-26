@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_mail_personal_mail_merge_form" model="ir.ui.view">
+        <field name="name">mail.personal.mail.merge.form</field>
+        <field name="model">mail.personal.mail.merge</field>
+        <field name="arch" type="xml">
+            <form string="Mail Merge">
+                <sheet>
+                    <group>
+                        <field name="partner_ids" widget="many2many_tags" options="{'no_create': True}" />
+                        <field name="subject" placeholder="Subject" required="True" />
+                    </group>
+                    <notebook>
+                        <page string="Body">
+                            <field name="body" options="{'style-inline': true}" />
+                            <div class="oe_grey mt-2">
+                                Available placeholders:
+                                <code>{{name}}</code>,
+                                <code>{{email}}</code>,
+                                <code>{{company}}</code>,
+                                <code>{{first_name}}</code>,
+                                <code>{{last_name}}</code>.
+                            </div>
+                        </page>
+                        <page string="Attachments">
+                            <field name="attachment_ids" widget="many2many_binary" />
+                        </page>
+                    </notebook>
+                </sheet>
+                <footer>
+                    <button name="action_send" string="Send" type="object" class="btn-primary" />
+                    <button string="Cancel" class="btn-secondary" special="cancel" />
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_res_partner_mail_merge" model="ir.actions.server">
+        <field name="name">Mail Merge</field>
+        <field name="model_id" ref="base.model_res_partner" />
+        <field name="binding_model_id" ref="base.model_res_partner" />
+        <field name="binding_type">action</field>
+        <field name="state">code</field>
+        <field name="code">
+            action = env["mail.personal.mail.merge"].create({}).action_open_wizard()
+        </field>
+    </record>
+</odoo>

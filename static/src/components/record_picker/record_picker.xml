@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="unified_workspace.RecordPicker">
+        <div class="o-unified-record-picker modal-body">
+            <div class="mb-3">
+                <label class="form-label">Record Type</label>
+                <select class="form-select" t-model="state.selectedModel">
+                    <t t-foreach="models" t-as="model" t-key="model.value">
+                        <option t-att-value="model.value" t-esc="model.label"/>
+                    </t>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Search</label>
+                <div class="input-group">
+                    <input type="text" class="form-control" t-model="state.searchQuery" placeholder="Record name..."/>
+                    <button class="btn btn-outline-secondary" t-on-click="onSearch" t-att-disabled="state.isLoading">
+                        <span t-if="state.isLoading" class="spinner-border spinner-border-sm"/>
+                        <span t-else="">Search</span>
+                    </button>
+                </div>
+            </div>
+            <div t-if="state.records.length" class="mb-3">
+                <label class="form-label">Select Record</label>
+                <select class="form-select" t-model="state.selectedRecordId" size="5">
+                    <t t-foreach="state.records" t-as="record" t-key="record.id">
+                        <option t-att-value="record.id" t-esc="record.name"/>
+                    </t>
+                </select>
+            </div>
+            <div t-elif="!state.isLoading and state.searchQuery" class="text-muted">
+                No records found.
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" t-on-click="onCancel">Cancel</button>
+            <button class="btn btn-primary" t-on-click="onConfirm" t-att-disabled="!state.selectedRecordId">
+                Confirm
+            </button>
+        </div>
+    </t>
+</templates>

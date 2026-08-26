@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="unified_workspace.AttachmentUploader">
+        <div
+            class="o-unified-attachment-uploader border rounded p-2"
+            t-att-class="{ 'drag-over': state.isDragOver }"
+            t-on-dragover.prevent="onDragOver"
+            t-on-dragleave="onDragLeave"
+            t-on-drop.prevent="onDrop">
+            <div class="text-center text-muted mb-2">
+                <i class="fa fa-paperclip me-1"/>
+                <span>Drag files here or </span>
+                <label class="text-primary cursor-pointer mb-0">
+                    <span>browse</span>
+                    <input type="file" class="d-none" multiple="true" t-on-change="onFileSelect"/>
+                </label>
+            </div>
+            <div t-if="state.attachments.length" class="d-flex flex-wrap gap-2">
+                <t t-foreach="state.attachments" t-as="attachment" t-key="attachment.id">
+                    <span class="badge bg-light text-dark border d-inline-flex align-items-center">
+                        <i class="fa fa-file-o me-1"/>
+                        <t t-esc="attachment.name"/>
+                        <button type="button" class="btn-close ms-1" style="font-size: 0.5rem;" t-on-click.stop="() => removeAttachment(attachment.id)"/>
+                    </span>
+                </t>
+            </div>
+        </div>
+    </t>
+</templates>

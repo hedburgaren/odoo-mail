@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="unified_workspace.ContactCreator">
+        <div class="o-unified-contact-creator modal-body">
+            <p class="text-muted">
+                The email address <strong t-esc="props.email"/> does not match an existing contact.
+                Create the contact below before sending.
+            </p>
+            <div class="mb-2">
+                <label class="form-label">Email</label>
+                <input type="email" class="form-control" t-att-value="props.email" disabled="1"/>
+            </div>
+            <div class="row mb-2">
+                <div class="col">
+                    <label class="form-label">First Name</label>
+                    <input type="text" class="form-control" t-model="state.firstName"/>
+                </div>
+                <div class="col">
+                    <label class="form-label">Last Name</label>
+                    <input type="text" class="form-control" t-model="state.lastName"/>
+                </div>
+            </div>
+            <div class="mb-2">
+                <label class="form-label">Company</label>
+                <input type="text" class="form-control" t-model="state.companyName" placeholder="Company name (existing or new)"/>
+                <div class="form-text">Leave empty to create a standalone contact.</div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" t-on-click="onCancel">Cancel</button>
+            <button class="btn btn-primary" t-on-click="onSave" t-att-disabled="state.isLoading">
+                <span t-if="state.isLoading" class="spinner-border spinner-border-sm me-1"/>
+                Create Contact
+            </button>
+        </div>
+    </t>
+</templates>

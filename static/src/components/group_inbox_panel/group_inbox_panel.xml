@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="unified_workspace.GroupInboxPanel">
+        <div class="o-unified-group-inbox d-flex h-100 w-100 overflow-hidden">
+            <div class="o-unified-group-inbox-list d-flex flex-column h-100 border-end bg-view" style="width: 360px;">
+                <div class="p-2 border-bottom">
+                    <h5 class="m-0 fw-bold">Group Inbox</h5>
+                    <div class="small text-muted">Delade notiser och mentions från Discuss.</div>
+                </div>
+                <div t-if="mailbox.groupInboxLoading" class="d-flex justify-content-center p-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+                <div t-else="" class="o-unified-group-inbox-items flex-grow-1 overflow-auto">
+                    <div t-if="mailbox.groupInboxMessages.length">
+                        <t t-foreach="mailbox.groupInboxMessages" t-as="message" t-key="message.id">
+                            <div
+                                class="o-unified-group-inbox-item p-2 border-bottom cursor-pointer"
+                                t-att-class="{ 'active': mailbox.selectedGroupMessageId === message.id }"
+                                t-on-click="onSelectMessage"
+                                t-att-data-message-id="message.id">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="o-unified-sender fw-bold text-truncate" t-att-class="{ 'fw-bolder': true }">
+                                        <t t-esc="message.author_name || '(No sender)'"/>
+                                    </span>
+                                    <span class="o-unified-date small text-muted text-nowrap">
+                                        <t t-esc="formatDate(message.date)"/>
+                                    </span>
+                                </div>
+                                <div class="o-unified-subject text-truncate fw-bold">
+                                    <t t-esc="message.subject"/>
+                                </div>
+                                <div class="o-unified-preview small text-muted text-truncate">
+                                    <t t-esc="message.preview || '(No preview)'"/>
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+                    <div t-else="" class="p-4 text-center text-muted">
+                        Inga nya group-inbox-notiser.
+                    </div>
+                </div>
+            </div>
+            <div t-if="mailbox.selectedGroupMessage" class="o-unified-group-inbox-reading flex-grow-1 h-100 overflow-auto bg-view p-3">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h5 class="fw-bold mb-1">
+                            <t t-esc="mailbox.selectedGroupMessage.subject"/>
+                        </h5>
+                        <div class="text-muted small">
+                            <t t-esc="mailbox.selectedGroupMessage.author_name || '(No sender)'"/> -
+                            <t t-esc="formatDate(mailbox.selectedGroupMessage.date)"/>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button
+                            t-if="mailbox.selectedGroupMessage.model and mailbox.selectedGroupMessage.res_id"
+                            class="btn btn-sm btn-outline-primary"
+                            t-on-click="onOpenRecord">
+                            <i class="fa fa-external-link me-1"/>
+                            Öppna post
+                        </button>
+                        <button
+                            class="btn btn-sm btn-outline-secondary"
+                            t-on-click="onMarkAsRead"
+                            t-att-data-message-id="mailbox.selectedGroupMessage.id">
+                            <i class="fa fa-check me-1"/>
+                            Markera som läst
+                        </button>
+                    </div>
+                </div>
+                <div class="o-unified-group-inbox-body">
+                    <t t-out="mailbox.selectedGroupMessage.body"/>
+                </div>
+            </div>
+            <div t-else="" class="o-unified-group-inbox-empty flex-grow-1 h-100 d-flex align-items-center justify-content-center text-muted bg-view">
+                Välj en notis för att läsa innehållet.
+            </div>
+        </div>
+    </t>
+</templates>

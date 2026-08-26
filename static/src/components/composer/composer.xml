@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="unified_workspace.Composer">
+        <div class="o-unified-composer d-flex flex-column h-100" t-ref="root">
+            <div class="o-unified-composer-header p-2 border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="m-0">New Message</h5>
+                <button type="button" class="btn-close" t-on-click="onDiscard" t-if="props.onClose or props.close"/>
+            </div>
+            <div class="o-unified-composer-body p-3 flex-grow-1 overflow-auto">
+                <div t-if="state.templates.length" class="mb-2">
+                    <label class="form-label">Template</label>
+                    <select class="form-select" t-on-change="onSelectTemplate">
+                        <option value="">-- Select template --</option>
+                        <t t-foreach="state.templates" t-as="template" t-key="template.id">
+                            <option t-att-value="template.id" t-att-selected="template.id === state.selectedTemplateId">
+                                <t t-esc="template.name"/>
+                            </option>
+                        </t>
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">To</label>
+                    <EmailTags emails="state.to" placeholder="'recipient email'" onChange.bind="(emails) => state.to = emails"/>
+                </div>
+                <div class="mb-2">
+                    <button type="button" class="btn btn-link p-0" t-on-click="() => state.showCcBcc = !state.showCcBcc">
+                        <t t-if="state.showCcBcc">Hide CC/BCC</t>
+                        <t t-else="">Show CC/BCC</t>
+                    </button>
+                </div>
+                <div t-if="state.showCcBcc" class="mb-2">
+                    <div class="mb-2">
+                        <label class="form-label">CC</label>
+                        <EmailTags emails="state.cc" placeholder="'cc email'" onChange.bind="(emails) => state.cc = emails"/>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">BCC</label>
+                        <EmailTags emails="state.bcc" placeholder="'bcc email'" onChange.bind="(emails) => state.bcc = emails"/>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Subject</label>
+                    <input type="text" class="form-control" t-model="state.subject"/>
+                </div>
+                <div class="mb-2 flex-grow-1 d-flex flex-column" style="min-height: 200px;">
+                    <label class="form-label">Body</label>
+                    <Wysiwyg
+                        config="editorConfig"
+                        onLoad.bind="onEditorLoad"
+                        toolbar="true"
+                        class="'flex-grow-1 border rounded'"/>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Attachments</label>
+                    <AttachmentUploader attachments="state.attachments" onChange.bind="(attachments) => state.attachments = attachments"/>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Signature</label>
+                    <select class="form-select" t-model="state.signatureType">
+                        <option value="internal">Internal</option>
+                        <option value="external">External</option>
+                    </select>
+                </div>
+            </div>
+            <div class="o-unified-composer-footer p-2 border-top d-flex justify-content-end gap-2">
+                <button class="btn btn-secondary" t-on-click="onDiscard">Discard</button>
+                <button class="btn btn-outline-secondary" t-on-click="onSaveDraft">Save Draft</button>
+                <div class="btn-group">
+                    <button class="btn btn-primary" t-on-click="onSend">Send</button>
+                    <button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                        <span class="visually-hidden">Toggle Dropdown</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><button class="dropdown-item" t-on-click="onSend">Send now</button></li>
+                        <li><button class="dropdown-item" t-on-click="onScheduleSend">Schedule Send</button></li>
+                        <li><button class="dropdown-item" t-on-click="onSendAndLog">Send and log to...</button></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </t>
+</templates>

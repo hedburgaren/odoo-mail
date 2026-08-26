@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="unified_workspace.EmailList">
+        <div class="o-unified-email-list d-flex flex-column h-100 border-end bg-view" style="width: 320px;">
+            <div class="o-unified-email-list-search p-2 border-bottom">
+                <input
+                    type="text"
+                    class="form-control mb-2"
+                    placeholder="Search mail..."
+                    t-att-value="mailbox.searchQuery"
+                    t-on-input="onSearchInput"/>
+                <div class="d-flex gap-1">
+                    <button
+                        class="btn btn-xs btn-outline-secondary"
+                        t-att-class="{ 'active': mailbox.filters.unread }"
+                        t-on-click="() => onToggleFilter('unread')">
+                        Unread
+                    </button>
+                    <button
+                        class="btn btn-xs btn-outline-secondary"
+                        t-att-class="{ 'active': mailbox.filters.starred }"
+                        t-on-click="() => onToggleFilter('starred')">
+                        Starred
+                    </button>
+                    <button
+                        class="btn btn-xs btn-outline-secondary"
+                        t-att-class="{ 'active': mailbox.filters.attachments }"
+                        t-on-click="() => onToggleFilter('attachments')">
+                        Attachments
+                    </button>
+                    <button
+                        class="btn btn-xs btn-outline-secondary"
+                        t-att-class="{ 'active': mailbox.filters.important }"
+                        t-on-click="() => onToggleFilter('important')">
+                        Important
+                    </button>
+                </div>
+            </div>
+
+            <div t-if="mailbox.isLoading" class="d-flex justify-content-center p-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+
+            <div t-else="" class="o-unified-email-list-items flex-grow-1 overflow-auto">
+                <div t-if="mailbox.messages.length">
+                    <t t-foreach="mailbox.messages" t-as="message" t-key="message.id">
+                        <div
+                            class="o-unified-email-list-item p-2 border-bottom cursor-pointer"
+                            t-att-class="{ 'active': mailbox.selectedMessageId === message.id, 'unread': message.state === 'unread' }"
+                            t-on-click="onSelectMessage"
+                            t-on-dragstart="onDragStart"
+                            draggable="true"
+                            t-att-data-message-id="message.id">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="o-unified-sender fw-bold text-truncate" t-att-class="{ 'fw-bolder': message.state === 'unread' }">
+                                    <t t-esc="message.email_from || '(No sender)'"/>
+                                </span>
+                                <span class="d-flex align-items-center">
+                                    <button
+                                        class="btn btn-link btn-sm p-0 me-2 o-unified-important-toggle"
+                                        t-att-data-message-id="message.id"
+                                        t-on-click.stop="onToggleImportant"
+                                        title="Toggle important">
+                                        <i t-att-class="message.is_important ? 'fa fa-exclamation-circle text-danger' : 'fa fa-exclamation-circle text-muted'"/>
+                                    </button>
+                                    <span class="o-unified-date small text-muted text-nowrap">
+                                        <t t-esc="formatDate(message.date)"/>
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="o-unified-subject text-truncate" t-att-class="{ 'fw-bold': message.state === 'unread' }">
+                                <i t-if="message.is_starred" class="fa fa-star text-warning me-1"/>
+                                <i t-if="message.is_important" class="fa fa-exclamation-circle text-danger me-1"/>
+                                <t t-esc="message.name"/>
+                            </div>
+                            <div class="o-unified-preview small text-muted text-truncate">
+                                <t t-esc="message.body_text || '(No preview)'"/>
+                            </div>
+                            <div t-if="message.attachment_ids.length" class="mt-1">
+                                <i class="fa fa-paperclip text-muted"/>
+                            </div>
+                        </div>
+                    </t>
+                </div>
+                <div t-else="" class="p-4 text-center text-muted">
+                    No emails in this folder.
+                </div>
+            </div>
+        </div>
+    </t>
+</templates>

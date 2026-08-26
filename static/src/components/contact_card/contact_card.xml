@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="unified_workspace.ContactCard">
+        <div t-if="props.partnerId and partner" class="o-unified-contact-card p-3 border-top bg-light">
+            <div class="d-flex align-items-center mb-2">
+                <div class="o-unified-contact-avatar rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-2" style="width: 40px; height: 40px;">
+                    <i class="fa fa-user"/>
+                </div>
+                <div>
+                    <div class="fw-bold"><t t-esc="partner.name"/></div>
+                    <div class="small text-muted"><t t-esc="partner.email"/></div>
+                </div>
+            </div>
+            <div t-if="partner.phone" class="small mb-1">
+                <i class="fa fa-phone me-1"/> <t t-esc="partner.phone"/>
+            </div>
+            <div t-if="partner.mobile" class="small mb-1">
+                <i class="fa fa-mobile me-1"/> <t t-esc="partner.mobile"/>
+            </div>
+            <div class="mt-2">
+                <span class="badge bg-info me-1" t-if="partner.is_company">Company</span>
+                <span class="badge bg-secondary" t-if="partner.title">Customer</span>
+            </div>
+            <div t-if="state.insights" class="mt-3">
+                <h6 class="small text-muted text-uppercase fw-bold">Sales Insights</h6>
+                <div class="small">
+                    <span class="fw-bold" t-esc="opportunityLabel"/>
+                    <span t-if="state.insights.total_expected_revenue > 0">
+                        · <span t-esc="state.insights.currency_symbol"/>
+                        <span t-esc="state.insights.total_expected_revenue"/>
+                    </span>
+                </div>
+                <div t-if="state.insights.next_activity" class="small text-truncate">
+                    <i class="fa fa-clock-o me-1 text-muted"/>
+                    <span t-esc="state.insights.next_activity"/>
+                    <span t-if="state.insights.next_activity_date" class="text-muted"> · <t t-esc="state.insights.next_activity_date"/></span>
+                </div>
+            </div>
+            <div t-if="state.leads.length" class="mt-3">
+                <h6 class="small text-muted text-uppercase fw-bold">Pipeline</h6>
+                <t t-foreach="state.leads" t-as="lead" t-key="lead.id">
+                    <div class="small text-truncate">
+                        <i class="fa fa-briefcase me-1 text-muted"/>
+                        <t t-esc="lead.name"/>
+                        <span t-if="lead.stage_id" class="badge bg-light text-dark border ms-1" t-esc="lead.stage_id[1]"/>
+                    </div>
+                </t>
+            </div>
+            <div t-if="state.tasks.length" class="mt-3">
+                <h6 class="small text-muted text-uppercase fw-bold">Open Tasks</h6>
+                <t t-foreach="state.tasks" t-as="task" t-key="task.id">
+                    <div class="small text-truncate">
+                        <i class="fa fa-check-square-o me-1 text-muted"/>
+                        <t t-esc="task.name"/>
+                        <span t-if="task.stage_id" class="badge bg-light text-dark border ms-1" t-esc="task.stage_id[1]"/>
+                    </div>
+                </t>
+            </div>
+        </div>
+    </t>
+</templates>

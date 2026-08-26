@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="unified_workspace.Workspace">
+        <div class="o-unified-workspace d-flex h-100 w-100 overflow-hidden" tabindex="-1" t-ref="root">
+            <Sidebar/>
+            <t t-if="mailbox.activePanel === 'calendar'">
+                <CalendarPanel/>
+            </t>
+            <t t-elif="mailbox.activePanel === 'groupInbox'">
+                <GroupInboxPanel/>
+            </t>
+            <t t-else="">
+                <EmailList/>
+                <ReadingPane/>
+            </t>
+        </div>
+    </t>
+</templates>

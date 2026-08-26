@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="unified_workspace.Sidebar">
+        <div class="o-unified-sidebar d-flex flex-column h-100 p-2 border-end bg-view overflow-auto">
+            <div class="o-unified-sidebar-header mb-2 px-2">
+                <h5 class="m-0 fw-bold">Unified Workspace</h5>
+            </div>
+
+            <button class="btn btn-primary w-100 mb-3" t-on-click="onCompose">
+                <i class="fa fa-pencil me-2"/>
+                Compose
+            </button>
+
+            <div class="o-unified-sidebar-section mb-3">
+                <h6 class="px-2 text-muted text-uppercase small fw-bold mb-1">Inbox</h6>
+                <div class="o-unified-sidebar-item d-flex align-items-center justify-content-between px-2 py-1 rounded cursor-pointer" t-on-click="onOpenGroupInbox">
+                    <span>
+                        <i class="fa fa-comments me-2"/>
+                        Group Inbox
+                    </span>
+                    <span t-if="mailbox.inboxCount" class="badge rounded-pill bg-danger" t-esc="mailbox.inboxCount"/>
+                </div>
+                <div
+                    t-if="personalInboxFolder"
+                    class="o-unified-sidebar-item d-flex align-items-center justify-content-between px-2 py-1 rounded cursor-pointer"
+                    t-att-class="{ 'active': mailbox.selectedFolderId === personalInboxFolder.id }"
+                    t-on-click="() => this.onSelectFolder(personalInboxFolder.id)">
+                    <span>
+                        <i class="fa fa-inbox me-2"/>
+                        Personal Inbox
+                    </span>
+                    <span t-if="personalInboxFolder.message_count" class="badge rounded-pill bg-secondary">
+                        <t t-esc="personalInboxFolder.message_count"/>
+                    </span>
+                </div>
+            </div>
+
+            <div class="o-unified-sidebar-section mb-3">
+                <h6 class="px-2 text-muted text-uppercase small fw-bold mb-1">Personal Mail</h6>
+                <div
+                    class="o-unified-sidebar-item d-flex align-items-center justify-content-between px-2 py-1 rounded cursor-pointer"
+                    t-att-class="{ 'active': mailbox.selectedFolderId === 'all' }"
+                    t-on-click="() => this.onSelectFolder('all')">
+                    <span>
+                        <i class="fa fa-folder-open-o me-2"/>
+                        <t t-esc="allFoldersItem.name"/>
+                    </span>
+                </div>
+                <t t-foreach="visibleFolders" t-as="folder" t-key="folder.id">
+                    <div
+                        class="o-unified-sidebar-item d-flex align-items-center justify-content-between px-2 py-1 rounded cursor-pointer"
+                        t-att-class="{ 'active': mailbox.selectedFolderId === folder.id }"
+                        t-on-click="() => this.onSelectFolder(folder.id)">
+                        <span>
+                            <i t-att-class="getFolderIcon(folder.folder_type)" class="me-2"/>
+                            <t t-esc="folder.name"/>
+                        </span>
+                        <span t-if="folder.message_count" class="badge rounded-pill bg-secondary">
+                            <t t-esc="folder.message_count"/>
+                        </span>
+                    </div>
+                </t>
+            </div>
+
+            <div class="o-unified-sidebar-section mb-3">
+                <h6 class="px-2 text-muted text-uppercase small fw-bold mb-1">Workspace</h6>
+                <div class="o-unified-sidebar-item px-2 py-1 rounded cursor-pointer" t-on-click="onOpenCalendar">
+                    <i class="fa fa-calendar me-2"/>
+                    Calendar
+                </div>
+            </div>
+
+            <div class="o-unified-sidebar-section mb-3">
+                <h6 class="px-2 text-muted text-uppercase small fw-bold mb-1">Chattar</h6>
+                <div t-if="!channels.length" class="px-2 small text-muted">
+                    Inga kanaler.
+                </div>
+                <t t-foreach="channels" t-as="channel" t-key="channel.id">
+                    <div
+                        class="o-unified-sidebar-item d-flex align-items-center justify-content-between px-2 py-1 rounded cursor-pointer"
+                        t-on-click="() => this.onOpenChannel(channel.id)">
+                        <span>
+                            <i t-att-class="getChannelIcon(channel.channel_type)" class="me-2"/>
+                            <t t-esc="channel.name"/>
+                        </span>
+                        <span t-if="channel.unread_count" class="badge rounded-pill bg-danger" t-esc="channel.unread_count"/>
+                    </div>
+                </t>
+            </div>
+
+            <div class="o-unified-sidebar-section mb-3">
+                <h6 class="px-2 text-muted text-uppercase small fw-bold mb-1">Today's Agenda</h6>
+                <div t-if="mailbox.agenda.length" class="px-2">
+                    <t t-foreach="mailbox.agenda" t-as="event" t-key="event.id">
+                        <div class="o-unified-agenda-item small mb-1 cursor-pointer" t-on-click="() => onOpenEvent(event.id)">
+                            <div class="text-truncate fw-bold" t-esc="event.name"/>
+                            <div class="text-muted">
+                                <span t-if="!event.allday" t-esc="formatTime(event.start)"/>
+                                <span t-else="">All day</span>
+                                <span t-if="event.location"> - <t t-esc="event.location"/></span>
+                            </div>
+                        </div>
+                    </t>
+                </div>
+                <div t-else="" class="px-2 small text-muted">
+                    No events today.
+                </div>
+            </div>
+        </div>
+    </t>
+</templates>

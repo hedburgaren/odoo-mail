@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="unified_workspace.ThreadPanel">
+        <div t-if="props.threadMessages.length > 1" class="o-unified-thread-panel border-top p-3 bg-light">
+            <h6 class="text-muted text-uppercase small fw-bold mb-2">Thread</h6>
+            <div class="o-unified-thread-list">
+                <t t-foreach="props.threadMessages" t-as="msg" t-key="msg.id">
+                    <div
+                        class="o-unified-thread-item p-2 mb-1 rounded cursor-pointer"
+                        t-att-class="{ 'active': props.selectedMessageId === msg.id, 'bg-white': props.selectedMessageId !== msg.id }"
+                        t-on-click="() => onSelect(msg.id)">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-bold text-truncate" t-att-class="{ 'fw-bolder': msg.state === 'unread' }" t-esc="msg.email_from || '(No sender)'"/>
+                            <span class="small text-muted text-nowrap ms-2" t-esc="formatDate(msg.date)"/>
+                        </div>
+                        <div class="small text-truncate" t-esc="msg.name"/>
+                    </div>
+                </t>
+            </div>
+        </div>
+    </t>
+</templates>

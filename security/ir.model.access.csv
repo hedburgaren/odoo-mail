@@ -1,0 +1,11 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_mail_personal_folder_user,mail.personal.folder.user,model_mail_personal_folder,base.group_user,1,1,1,0
+access_mail_personal_folder_system,mail.personal.folder.system,model_mail_personal_folder,base.group_system,1,1,1,1
+access_mail_personal_mailbox_user,mail.personal.mailbox.user,model_mail_personal_mailbox,base.group_user,1,1,1,0
+access_mail_personal_mailbox_system,mail.personal.mailbox.system,model_mail_personal_mailbox,base.group_system,1,1,1,1
+access_mail_personal_template_user,mail.personal.template.user,model_mail_personal_template,base.group_user,1,1,1,0
+access_mail_personal_template_system,mail.personal.template.system,model_mail_personal_template,base.group_system,1,1,1,1
+access_mail_personal_scheduled_message_user,mail.personal.scheduled.message.user,model_mail_personal_scheduled_message,base.group_user,1,1,1,0
+access_mail_personal_scheduled_message_system,mail.personal.scheduled.message.system,model_mail_personal_scheduled_message,base.group_system,1,1,1,1
+access_mail_personal_mail_merge_user,mail.personal.mail.merge.user,model_mail_personal_mail_merge,base.group_user,1,1,1,0
+access_mail_personal_mail_merge_system,mail.personal.mail.merge.system,model_mail_personal_mail_merge,base.group_system,1,1,1,1

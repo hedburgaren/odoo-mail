@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Replace the native Discuss menu while Unified Workspace is installed. -->
+    <record id="mail.menu_root_discuss" model="ir.ui.menu">
+        <field name="active" eval="False"/>
+    </record>
+
+    <menuitem
+        id="menu_unified_workspace_root"
+        name="Unified Workspace"
+        sequence="50"/>
+
+    <menuitem
+        id="menu_unified_workspace_workspace"
+        name="Workspace"
+        parent="menu_unified_workspace_root"
+        action="action_unified_workspace_workspace"
+        sequence="5"/>
+
+    <menuitem
+        id="menu_mail_personal_mailbox"
+        name="Personal Mailbox"
+        parent="menu_unified_workspace_root"
+        action="action_mail_personal_mailbox"
+        sequence="10"/>
+
+    <menuitem
+        id="menu_mail_personal_folder"
+        name="Folders"
+        parent="menu_unified_workspace_root"
+        action="action_mail_personal_folder"
+        sequence="20"/>
+
+    <menuitem
+        id="menu_mail_personal_template"
+        name="Email Templates"
+        parent="menu_unified_workspace_root"
+        action="action_mail_personal_template"
+        sequence="25"/>
+
+    <!-- Settings are handled in Odoo's global configuration; no separate menu here. -->
+</odoo>

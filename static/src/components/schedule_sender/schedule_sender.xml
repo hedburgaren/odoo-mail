@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="unified_workspace.ScheduleSender">
+        <div class="o-unified-schedule-sender modal-body">
+            <p class="text-muted">
+                Choose when the email should be sent.
+            </p>
+            <div class="mb-3">
+                <label class="form-label">Send at</label>
+                <input type="datetime-local" class="form-control" t-model="state.scheduledDate"/>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" t-on-click="onCancel">Cancel</button>
+            <button class="btn btn-primary" t-on-click="onConfirm">Schedule</button>
+        </div>
+    </t>
+</templates>

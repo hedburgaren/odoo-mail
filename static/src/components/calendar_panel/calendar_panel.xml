@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="unified_workspace.CalendarPanel">
+        <div class="o-unified-calendar-panel d-flex flex-column h-100 w-100 overflow-hidden">
+            <div t-if="viewProps.resModel" class="flex-grow-1 position-relative">
+                <View t-props="viewProps"/>
+            </div>
+        </div>
+    </t>
+</templates>

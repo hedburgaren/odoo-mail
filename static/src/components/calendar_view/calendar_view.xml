@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="unified_workspace.CalendarView">
+        <div class="o-unified-calendar-view d-flex flex-column h-100 p-4">
+            <h4>Today's Agenda</h4>
+            <div t-if="mailbox.agenda.length" class="list-group mt-3">
+                <t t-foreach="mailbox.agenda" t-as="event" t-key="event.id">
+                    <div class="list-group-item list-group-item-action cursor-pointer" t-on-click="() => onOpenEvent(event.id)">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong t-esc="event.name"/>
+                            <span t-if="event.allday" class="badge bg-secondary">All day</span>
+                            <span t-else="" class="text-muted small" t-esc="formatDateTime(event.start)"/>
+                        </div>
+                        <div t-if="event.location" class="small text-muted">
+                            <i class="fa fa-map-marker me-1"/> <t t-esc="event.location"/>
+                        </div>
+                    </div>
+                </t>
+            </div>
+            <div t-else="" class="text-muted mt-3">
+                No events scheduled for today.
+            </div>
+        </div>
+    </t>
+</templates>

@@ -1,0 +1,159 @@
+.o-unified-workspace {
+    --unified-sidebar-width: 220px;
+    --unified-email-list-width: 320px;
+
+    .o-unified-sidebar {
+        width: var(--unified-sidebar-width);
+        min-width: var(--unified-sidebar-width);
+    }
+
+    .o-unified-email-list {
+        width: var(--unified-email-list-width);
+        min-width: var(--unified-email-list-width);
+    }
+
+    .o-unified-sidebar-item {
+        transition: background-color 0.15s ease;
+
+        &:hover,
+        &.active {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+    }
+
+    .o-unified-email-list-item {
+        transition: background-color 0.15s ease;
+
+        &:hover,
+        &.active {
+            background-color: rgba(0, 0, 0, 0.03);
+        }
+
+        &.unread {
+            background-color: rgba(var(--o-color-primary-rgb), 0.05);
+        }
+    }
+
+    .o-unified-sender,
+    .o-unified-subject,
+    .o-unified-preview {
+        max-width: 100%;
+    }
+
+    .o-unified-email-tags {
+        min-height: 38px;
+        cursor: text;
+        position: relative;
+
+        .o-unified-email-tags-input {
+            outline: none;
+            min-width: 80px;
+            background: transparent;
+        }
+
+        .o-unified-email-tags-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            z-index: 1060;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    }
+
+    .o-unified-attachment-uploader {
+        transition: border-color 0.15s ease, background-color 0.15s ease;
+
+        &.drag-over {
+            border-color: var(--o-color-primary) !important;
+            background-color: rgba(var(--o-color-primary-rgb), 0.05);
+        }
+    }
+
+    .o-unified-thread-item {
+        transition: background-color 0.15s ease;
+
+        &:hover,
+        &.active {
+            background-color: rgba(var(--o-color-primary-rgb), 0.08);
+        }
+    }
+
+    .o-unified-email-list-search .btn.active {
+        background-color: var(--o-color-primary);
+        border-color: var(--o-color-primary);
+        color: #fff;
+    }
+
+    .o-unified-email-list-item {
+        &[draggable="true"] {
+            cursor: grab;
+        }
+
+        &:active {
+            cursor: grabbing;
+        }
+    }
+
+    .o-unified-calendar-panel {
+    .o_view_controller {
+        position: absolute;
+        inset: 0;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+}
+
+.o-unified-group-inbox-item {
+    transition: background-color 0.15s ease;
+
+    &:hover,
+    &.active {
+        background-color: rgba(var(--o-color-primary-rgb), 0.08);
+    }
+}
+
+    .o-unified-agenda-item {
+        transition: background-color 0.15s ease;
+
+        &:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+    }
+}
+
+// The dialog service renders our Composer and RecordPicker components as
+// plain overlay items. Style those items as modal backdrops so the dialogs
+// are actually visible and centered.
+.o-overlay-item:has(.o-unified-composer),
+.o-overlay-item:has(.o-unified-record-picker) {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1055;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+
+    .o-unified-composer,
+    .o-unified-record-picker {
+        width: 100%;
+        max-width: 1200px;
+        height: 90vh;
+        max-height: 900px;
+        background-color: #fff;
+        border-radius: 0.5rem;
+        box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.15);
+        overflow: hidden;
+    }
+
+    .o-unified-record-picker {
+        height: auto;
+        max-width: 500px;
+        padding: 1rem;
+    }
+}
