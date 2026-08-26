@@ -161,9 +161,16 @@ export class MailboxService extends Reactive {
             ...m,
             body: markup(m.body || ""),
         }));
-        const attachmentIds = this.messages.flatMap((m) => m.attachment_ids || []);
+        const attachmentIds = [...new Set(this.messages.flatMap((m) => m.attachment_ids || []))].filter(Boolean);
         if (attachmentIds.length) {
-            const attachments = await this.orm.read("ir.attachment", attachmentIds, ["id", "name", "mimetype", "datas"]);
+            // Read metadata only; fetch content on demand via /web/content/<id>.
+            const BATCH = 100;
+            const attachments = [];
+            for (let i = 0; i < attachmentIds.length; i += BATCH) {
+                const batch = attachmentIds.slice(i, i + BATCH);
+                const batchAttachments = await this.orm.read("ir.attachment", batch, ["id", "name", "mimetype"]);
+                attachments.push(...batchAttachments);
+            }
             const attachmentById = Object.fromEntries(attachments.map((a) => [a.id, a]));
             for (const message of this.messages) {
                 message.attachment_ids = (message.attachment_ids || []).map((id) => attachmentById[id]).filter(Boolean);
@@ -377,7 +384,7 @@ export class MailboxService extends Reactive {
         }
         let attachments = [];
         if (message.attachment_ids?.length) {
-            attachments = await this.orm.read("ir.attachment", message.attachment_ids, ["id", "name", "mimetype", "datas"]);
+            attachments = await this.orm.read("ir.attachment", message.attachment_ids, ["id", "name", "mimetype"]);
         }
         this.openComposer({
             draftId: messageId,
