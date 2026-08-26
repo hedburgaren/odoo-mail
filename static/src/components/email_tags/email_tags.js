@@ -28,6 +28,13 @@ export class EmailTags extends Component {
             isLoading: false,
             selectedIndex: 0,
         });
+        // Bind event handlers explicitly so OWL arrow-function callbacks keep `this`.
+        this.onContainerClick = this.onContainerClick.bind(this);
+        this.onInputKeydown = this.onInputKeydown.bind(this);
+        this.onInputBlur = this.onInputBlur.bind(this);
+        this.onInput = this.onInput.bind(this);
+        this.onPaste = this.onPaste.bind(this);
+        this.selectSuggestion = this.selectSuggestion.bind(this);
     }
 
     get value() {
