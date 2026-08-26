@@ -320,9 +320,9 @@ export class Composer extends Component {
         }
         const user = users[0];
         if (this.state.signatureType === "external") {
-            return user.email_signature_external || user.email_signature || "";
+            return user.email_signature_external || user.email_signature || user.signature || "";
         }
-        return user.email_signature || "";
+        return user.email_signature || user.signature || "";
     }
 
     async _resolveAllPartners(emails) {

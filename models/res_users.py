@@ -37,12 +37,12 @@ class ResUsers(models.Model):
         """Return the signature to use for the given recipient partners."""
         self.ensure_one()
         if not partners:
-            return self.email_signature or ""
+            return self.email_signature or self.signature or ""
         internal_users = self.env["res.users"].search([
             ("partner_id", "in", partners.ids),
             ("share", "=", False),
             ("active", "=", True),
         ])
         if internal_users or not self.email_signature_external:
-            return self.email_signature or ""
-        return self.email_signature_external
+            return self.email_signature or self.signature or ""
+        return self.email_signature_external or self.signature or ""
