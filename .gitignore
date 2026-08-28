@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Odoo
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Playwright MCP
+.playwright-mcp/
+
+# Screenshots / assets
+*.png
+*.jpg
+*.jpeg
