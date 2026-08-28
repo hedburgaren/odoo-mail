@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_pwa_push" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.pwa.push</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app data-string="PWA Push" string="PWA Push" name="unified_workspace_pwa_push">
+                    <block title="Push-notiser" name="pwa_push_container">
+                        <setting id="pwa_push_enabled_setting"
+                                 help="Slå på Web Push-notiser för PWA:n."
+                                 title="Aktivera pushnotiser">
+                            <field name="pwa_push_enabled"/>
+                        </setting>
+                        <setting id="pwa_push_vapid_subscriber_setting"
+                                 help="E-postadress som äger VAPID-nycklarna."
+                                 title="VAPID ägare">
+                            <field name="pwa_push_vapid_subscriber"/>
+                        </setting>
+                        <setting id="pwa_push_vapid_public_key_setting"
+                                 help="Publik VAPID-nyckel som frontend använder."
+                                 title="VAPID publik nyckel">
+                            <field name="pwa_push_vapid_public_key" readonly="1"/>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+</odoo>

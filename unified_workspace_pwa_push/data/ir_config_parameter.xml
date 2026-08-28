@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="param_pwa_push_enabled" model="ir.config_parameter">
+            <field name="key">unified_workspace_pwa_push.push_enabled</field>
+            <field name="value">True</field>
+        </record>
+    </data>
+</odoo>
