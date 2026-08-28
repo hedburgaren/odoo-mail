@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        unified_workspace_pwa_push: ladda push-registreringsskriptet i
+        web.assets_frontend. Samma mönster som arc_industrial_ui; ir.asset
+        garanterar att tillgången följer med även när website_id-filtret
+        annars skulle stoppa manifest-baserade assets.
+    -->
+    <record id="asset_frontend_pwa_push_register_js" model="ir.asset">
+        <field name="name">Unified Workspace PWA Push register JS</field>
+        <field name="bundle">web.assets_frontend</field>
+        <field name="path">unified_workspace_pwa_push/static/src/js/pwa_push_register.js</field>
+        <field name="sequence">25</field>
+    </record>
+</odoo>

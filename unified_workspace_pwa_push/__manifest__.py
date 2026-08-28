@@ -7,19 +7,19 @@
     "website": "https://github.com/hedburgaren/odoo-mail",
     "license": "LGPL-3",
     "category": "Productivity",
-    "summary": "Web Push-notiser for PlastShop PWA: mail, chatter och live chat.",
+    "summary": "Web Push-notiser för PlastShop PWA: mail, chatter och live chat.",
     "description": """
 Unified Workspace PWA Push
 ==========================
 
-Lagger Web Push-notiser ovanpa PWA:n i arc_industrial_ui. Prenumerationer
+Lägger Web Push-notiser ovanpå PWA:n i arc_industrial_ui. Prenumerationer
 kopplas till res.partner. Notiser skickas vid:
 
 * nya mail.notification (chatter/mentions/live chat)
 * nya inkommande mail i mail.personal.mailbox
 
-Implementeringen anvander Python-biblioteket cryptography for VAPID-signering
-och aes128gcm-kryptering, sa inget extra pip-paket behovs.
+Implementeringen använder Python-biblioteket cryptography för VAPID-signering
+och aes128gcm-kryptering, så inget extra pip-paket behövs.
 
 Beroenden: arc_industrial_ui, mail, im_livechat, unified_workspace.
 """,
@@ -32,6 +32,7 @@ Beroenden: arc_industrial_ui, mail, im_livechat, unified_workspace.
     "data": [
         "security/ir.model.access.csv",
         "data/ir_config_parameter.xml",
+        "data/ir_asset.xml",
         "data/server_actions.xml",
         "views/res_config_settings_views.xml",
         "views/pwa_push_subscription_views.xml",
