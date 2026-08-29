@@ -64,7 +64,7 @@ class PwaPushController(http.Controller):
 class ArcPwaPushController(ArcPwaController):
     """Utöka PWA service workern med push-hantering."""
 
-    @http.route('/pwa/sw.js', type='http', auth='public', website=True, sitemap=False)
+    @http.route('/pwa/sw.js', type='http', auth='public', website=False, sitemap=False)
     def service_worker(self, **kw):
         """Servera utökad service worker med push-stöd."""
         # Hämta grund-SW från arc_industrial_ui
