@@ -4,7 +4,6 @@
 // unified_workspace_pwa_push - frontend-registrering av push-prenumeration
 // =============================================================================
 
-import { _t } from "@web/core/l10n/translation";
 import { rpc } from "@web/core/network/rpc";
 
 function urlBase64ToUint8Array(base64String) {
@@ -14,6 +13,20 @@ function urlBase64ToUint8Array(base64String) {
         .replace(/_/g, '/');
     const rawData = window.atob(base64);
     return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
+}
+
+async function syncSubscriptionToServer(subscription) {
+    const subJson = subscription.toJSON();
+    try {
+        await rpc('/pwa/push/subscribe', {
+            endpoint: subJson.endpoint,
+            p256dh: subJson.keys.p256dh,
+            auth: subJson.keys.auth,
+        });
+        console.log('[PWA PUSH] Prenumeration synkroniserad.');
+    } catch (e) {
+        console.error('[PWA PUSH] Kunde inte spara prenumeration:', e);
+    }
 }
 
 async function subscribePush(registration) {
@@ -53,38 +66,42 @@ async function subscribePush(registration) {
         return;
     }
 
-    const subJson = subscription.toJSON();
+    await syncSubscriptionToServer(subscription);
+}
+
+async function initPush() {
+    if (!('serviceWorker' in navigator)) {
+        console.warn('[PWA PUSH] Service Worker stöds inte.');
+        return;
+    }
+    if (!('PushManager' in window)) {
+        console.warn('[PWA PUSH] Push Manager stöds inte.');
+        return;
+    }
+
+    let registration;
     try {
-        await rpc('/pwa/push/subscribe', {
-            endpoint: subJson.endpoint,
-            p256dh: subJson.keys.p256dh,
-            auth: subJson.keys.auth,
-        });
-        console.log('[PWA PUSH] Prenumeration sparad.');
+        registration = await navigator.serviceWorker.register('/pwa/sw.js', { scope: '/' });
+        console.log('[PWA PUSH] Service Worker registrerad:', registration.scope);
     } catch (e) {
-        console.error('[PWA PUSH] Kunde inte spara prenumeration:', e);
+        console.error('[PWA PUSH] Service Worker-registrering misslyckades:', e);
+        return;
+    }
+
+    try {
+        const subscription = await registration.pushManager.getSubscription();
+        if (subscription === null) {
+            await subscribePush(registration);
+        } else {
+            await syncSubscriptionToServer(subscription);
+        }
+    } catch (e) {
+        console.error('[PWA PUSH] Kunde inte hantera push-prenumeration:', e);
     }
 }
 
-document.addEventListener('DOMContentLoaded', function () {
-    if (!('serviceWorker' in navigator)) return;
-    if (!('PushManager' in window)) return;
-
-    navigator.serviceWorker.ready.then(function (registration) {
-        registration.pushManager.getSubscription().then(function (subscription) {
-            if (subscription === null) {
-                subscribePush(registration);
-            } else {
-                // Synka befintlig prenumeration till servern
-                const subJson = subscription.toJSON();
-                rpc('/pwa/push/subscribe', {
-                    endpoint: subJson.endpoint,
-                    p256dh: subJson.keys.p256dh,
-                    auth: subJson.keys.auth,
-                }).catch(function (e) {
-                    console.warn('[PWA PUSH] Kunde inte synka prenumeration:', e);
-                });
-            }
-        });
-    });
-});
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPush);
+} else {
+    initPush();
+}
