@@ -14,7 +14,7 @@ _logger = logging.getLogger(__name__)
 
 class PwaPushController(http.Controller):
 
-    @http.route('/pwa/vapid_public_key', type='json', auth='user', methods=['POST'])
+    @http.route('/pwa/vapid_public_key', type='json', auth='public', methods=['POST'])
     def vapid_public_key(self, **kw):
         """Returnera VAPID publik nyckel till frontend."""
         public_key = request.env['ir.config_parameter'].sudo().get_param(
@@ -28,7 +28,7 @@ class PwaPushController(http.Controller):
             )
         return {'public_key': public_key}
 
-    @http.route('/pwa/push/subscribe', type='json', auth='user', methods=['POST'])
+    @http.route('/pwa/push/subscribe', type='json', auth='public', methods=['POST'])
     def push_subscribe(self, **kw):
         """Ta emot en push-prenumeration från webbläsaren."""
         data = request.jsonrequest or {}
@@ -40,16 +40,17 @@ class PwaPushController(http.Controller):
             return {'status': 'error', 'message': 'Saknad prenumerationsdata.'}
 
         partner = request.env.user.partner_id
+        user_id = request.env.user.id if not request.env.user._is_public() else None
         sub_id = request.env['pwa.push.subscription'].sudo().subscribe(
             partner_id=partner.id,
             endpoint=endpoint,
             p256dh=p256dh,
             auth=auth,
-            user_id=request.env.user.id,
+            user_id=user_id,
         )
         return {'status': 'ok', 'subscription_id': sub_id}
 
-    @http.route('/pwa/push/unsubscribe', type='json', auth='user', methods=['POST'])
+    @http.route('/pwa/push/unsubscribe', type='json', auth='public', methods=['POST'])
     def push_unsubscribe(self, **kw):
         """Avregistrera en push-prenumeration."""
         data = request.jsonrequest or {}
