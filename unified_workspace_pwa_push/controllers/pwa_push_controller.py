@@ -29,13 +29,8 @@ class PwaPushController(http.Controller):
         return {'public_key': public_key}
 
     @http.route('/pwa/push/subscribe', type='json', auth='public', methods=['POST'])
-    def push_subscribe(self, **kw):
+    def push_subscribe(self, endpoint=None, p256dh=None, auth=None, **kw):
         """Ta emot en push-prenumeration från webbläsaren."""
-        data = request.jsonrequest or {}
-        endpoint = data.get('endpoint')
-        p256dh = data.get('p256dh')
-        auth = data.get('auth')
-
         if not endpoint or not p256dh or not auth:
             return {'status': 'error', 'message': 'Saknad prenumerationsdata.'}
 
@@ -51,10 +46,8 @@ class PwaPushController(http.Controller):
         return {'status': 'ok', 'subscription_id': sub_id}
 
     @http.route('/pwa/push/unsubscribe', type='json', auth='public', methods=['POST'])
-    def push_unsubscribe(self, **kw):
+    def push_unsubscribe(self, endpoint=None, **kw):
         """Avregistrera en push-prenumeration."""
-        data = request.jsonrequest or {}
-        endpoint = data.get('endpoint')
         if not endpoint:
             return {'status': 'error', 'message': 'Saknad endpoint.'}
 
