@@ -14,6 +14,15 @@ _logger = logging.getLogger(__name__)
 
 class PwaPushController(http.Controller):
 
+    @http.route('/pwa/push/status', type='json', auth='public', methods=['POST'])
+    def push_status(self, **kw):
+        """Returnera inloggningsstatus for push-prenumeration."""
+        is_public = request.env.user._is_public()
+        return {
+            'is_logged_in': not is_public,
+            'partner_id': request.env.user.partner_id.id if not is_public else None,
+        }
+
     @http.route('/pwa/vapid_public_key', type='json', auth='public', methods=['POST'])
     def vapid_public_key(self, **kw):
         """Returnera VAPID publik nyckel till frontend."""
@@ -34,8 +43,11 @@ class PwaPushController(http.Controller):
         if not endpoint or not p256dh or not auth:
             return {'status': 'error', 'message': 'Saknad prenumerationsdata.'}
 
+        if request.env.user._is_public():
+            return {'status': 'error', 'message': 'Push kraver inloggning.'}
+
         partner = request.env.user.partner_id
-        user_id = request.env.user.id if not request.env.user._is_public() else None
+        user_id = request.env.user.id
         sub_id = request.env['pwa.push.subscription'].sudo().subscribe(
             partner_id=partner.id,
             endpoint=endpoint,

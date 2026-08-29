@@ -79,6 +79,18 @@ async function initPush() {
         return;
     }
 
+    // Push-notiser ar personliga; kraver inloggning
+    try {
+        const status = await rpc('/pwa/push/status', {});
+        if (!status.is_logged_in) {
+            console.log('[PWA PUSH] Anvandaren ar inte inloggad. Hoppar over push-prenumeration.');
+            return;
+        }
+    } catch (e) {
+        console.error('[PWA PUSH] Kunde inte avgora inloggningsstatus:', e);
+        return;
+    }
+
     let registration;
     try {
         registration = await navigator.serviceWorker.register('/pwa/sw.js', { scope: '/' });
