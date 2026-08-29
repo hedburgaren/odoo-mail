@@ -72,10 +72,15 @@ class ArcPwaPushController(ArcPwaController):
 // ---------------------------------------------------------------------------
 
 self.addEventListener('push', function (event) {
-    if (!event.data) return;
+    console.log('[PWA PUSH] Push-mottaget:', event);
+    if (!event.data) {
+        console.warn('[PWA PUSH] Ingen data i push-event.');
+        return;
+    }
     let payload;
     try {
         payload = event.data.json();
+        console.log('[PWA PUSH] Payload avkodad:', payload);
     } catch (e) {
         console.warn('[PWA PUSH] Kunde inte avkoda payload:', e);
         return;
@@ -92,7 +97,18 @@ self.addEventListener('push', function (event) {
     };
 
     event.waitUntil(
-        self.registration.showNotification(title, options)
+        self.registration.showNotification(title, options).then(function () {
+            console.log('[PWA PUSH] showNotification lyckades.');
+            if (self.clients) {
+                self.clients.matchAll({type: 'window', includeUncontrolled: true}).then(function (clientList) {
+                    clientList.forEach(function (client) {
+                        client.postMessage({type: 'push-shown', title: title, body: options.body, tag: options.tag});
+                    });
+                });
+            }
+        }).catch(function (err) {
+            console.error('[PWA PUSH] showNotification misslyckades:', err);
+        })
     );
 });
 
@@ -114,6 +130,23 @@ self.addEventListener('notificationclick', function (event) {
             }
         })
     );
+});
+
+// Test/diagnostik: tillat sidan att trigga en notis via postMessage
+self.addEventListener('message', function (event) {
+    if (event.data && event.data.type === 'test-push') {
+        const title = event.data.title || 'Testnotis';
+        const options = event.data.options || { body: 'Test fran service worker.' };
+        self.registration.showNotification(title, options).then(function () {
+            if (event.ports && event.ports[0]) {
+                event.ports[0].postMessage({ok: true});
+            }
+        }).catch(function (err) {
+            if (event.ports && event.ports[0]) {
+                event.ports[0].postMessage({ok: false, error: err.message});
+            }
+        });
+    }
 });
 """
         extended_sw = base_sw + push_sw
