@@ -83,6 +83,15 @@
                             </div>
                         </div>
                     </t>
+                    <div t-if="mailbox.hasMoreMessages" class="p-2 text-center">
+                        <button
+                            class="btn btn-sm btn-outline-secondary"
+                            t-att-disabled="mailbox.isLoadingMore"
+                            t-on-click="onLoadMore">
+                            <t t-if="mailbox.isLoadingMore">Loading...</t>
+                            <t t-else="">Load more</t>
+                        </button>
+                    </div>
                 </div>
                 <div t-else="" class="p-4 text-center text-muted">
                     No emails in this folder.
