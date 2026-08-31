@@ -18,6 +18,10 @@ export class MailboxService extends Reactive {
         this.folders = [];
         this.selectedMessageId = null;
         this.selectedFolderId = null;
+        this.messagesPageSize = 50;
+        this.messagesOffset = 0;
+        this.hasMoreMessages = false;
+        this.isLoadingMore = false;
         this.searchQuery = "";
         this.isLoading = false;
         this.filters = {
@@ -88,8 +92,7 @@ export class MailboxService extends Reactive {
         this.agenda = await this.orm.call("mail.personal.mailbox", "get_today_agenda", []);
     }
 
-    async loadMessages() {
-        this.isLoading = true;
+    _buildMessageDomain() {
         const domain = [];
         if (this.selectedFolderId && this.selectedFolderId !== "all") {
             domain.push(["folder_id", "=", this.selectedFolderId]);
@@ -128,9 +131,50 @@ export class MailboxService extends Reactive {
             }
             domain.push(["is_important", "=", true]);
         }
-        const messages = await this.orm.searchRead(
+        return domain;
+    }
+
+    async loadMessages() {
+        this.isLoading = true;
+        this.messagesOffset = 0;
+        try {
+            const messages = await this._fetchMessagePage(0);
+            this.hasMoreMessages = messages.length === this.messagesPageSize;
+            this.messagesOffset = messages.length;
+            await this._hydrateMessages(messages);
+            this.messages = messages;
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
+    async loadMoreMessages() {
+        if (this.isLoading || this.isLoadingMore || !this.hasMoreMessages) {
+            return;
+        }
+        this.isLoadingMore = true;
+        try {
+            const messages = await this._fetchMessagePage(this.messagesOffset);
+            this.hasMoreMessages = messages.length === this.messagesPageSize;
+            this.messagesOffset += messages.length;
+            await this._hydrateMessages(messages);
+            this.messages = [...this.messages, ...messages];
+        } finally {
+            this.isLoadingMore = false;
+        }
+    }
+
+    /**
+     * Fetch one page of message headers.
+     *
+     * The HTML body is deliberately left out: it is by far the heaviest field
+     * (hundreds of megabytes across a full mailbox) and only the opened message
+     * needs it. It is fetched on demand in _ensureMessageBody().
+     */
+    async _fetchMessagePage(offset) {
+        return this.orm.searchRead(
             "mail.personal.mailbox",
-            domain,
+            this._buildMessageDomain(),
             [
                 "id",
                 "name",
@@ -141,7 +185,6 @@ export class MailboxService extends Reactive {
                 "state",
                 "is_starred",
                 "is_important",
-                "body",
                 "body_text",
                 "folder_id",
                 "partner_id",
@@ -153,15 +196,13 @@ export class MailboxService extends Reactive {
                 "timer_start",
                 "timer_duration",
                 "timer_active",
-                "project_task_id",
             ],
-            { order: "date DESC, id DESC" }
+            { order: "date DESC, id DESC", limit: this.messagesPageSize, offset }
         );
-        this.messages = messages.map((m) => ({
-            ...m,
-            body: markup(m.body || ""),
-        }));
-        const attachmentIds = [...new Set(this.messages.flatMap((m) => m.attachment_ids || []))].filter(Boolean);
+    }
+
+    async _hydrateMessages(messages) {
+        const attachmentIds = [...new Set(messages.flatMap((m) => m.attachment_ids || []))].filter(Boolean);
         if (attachmentIds.length) {
             // Read metadata only; fetch content on demand via /web/content/<id>.
             const BATCH = 100;
@@ -172,11 +213,11 @@ export class MailboxService extends Reactive {
                 attachments.push(...batchAttachments);
             }
             const attachmentById = Object.fromEntries(attachments.map((a) => [a.id, a]));
-            for (const message of this.messages) {
+            for (const message of messages) {
                 message.attachment_ids = (message.attachment_ids || []).map((id) => attachmentById[id]).filter(Boolean);
             }
         }
-        const eventIds = this.messages.map((m) => m.calendar_event_id?.[0]).filter(Boolean);
+        const eventIds = messages.map((m) => m.calendar_event_id?.[0]).filter(Boolean);
         if (eventIds.length) {
             const events = await this.orm.read(
                 "calendar.event",
@@ -195,7 +236,7 @@ export class MailboxService extends Reactive {
                 attendeeById = Object.fromEntries(attendees.map((a) => [a.id, a]));
             }
             const userPartnerId = this._currentPartnerId();
-            for (const message of this.messages) {
+            for (const message of messages) {
                 const event = eventById[message.calendar_event_id?.[0]];
                 if (event) {
                     message.calendar_event = event;
@@ -206,7 +247,17 @@ export class MailboxService extends Reactive {
                 }
             }
         }
-        this.isLoading = false;
+    }
+
+    /** Load the HTML body of a single message, once, when it is opened. */
+    async _ensureMessageBody(messageId) {
+        const message = this.messages.find((m) => m.id === messageId);
+        if (!message || message.body !== undefined) {
+            return;
+        }
+        message.body = markup("");
+        const records = await this.orm.read("mail.personal.mailbox", [messageId], ["body"]);
+        message.body = markup(records[0]?.body || "");
     }
 
     selectMessage(messageId) {
@@ -215,6 +266,7 @@ export class MailboxService extends Reactive {
         if (message && message.state === "unread") {
             this.markAsRead(messageId);
         }
+        this._ensureMessageBody(messageId);
     }
 
     selectFolder(folderId) {

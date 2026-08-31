@@ -27,6 +27,10 @@ export class EmailList extends Component {
         this.mailbox.selectMessage(messageId);
     }
 
+    onLoadMore() {
+        this.mailbox.loadMoreMessages();
+    }
+
     onDragStart(ev) {
         const messageId = parseInt(ev.currentTarget.dataset.messageId, 10);
         ev.dataTransfer.setData("text/plain", messageId);
