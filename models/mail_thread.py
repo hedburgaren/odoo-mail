@@ -60,13 +60,32 @@ class MailThread(models.AbstractModel):
         Folder = self.env["mail.personal.folder"]
 
         inbox = Folder._get_system_folder(user, "inbox")
+
+        # Dedupe on Message-ID per user. The IMAP poller refetches messages
+        # whenever the \Seen flag does not stick on the server; without this
+        # guard every poll cycle creates a new copy (56k rows of ~57 mails,
+        # 2026-08-26 to 2026-09-02). Native message_process has the same
+        # guard via mail.message; this override must supply its own.
+        incoming_message_id = (msg.get("message-id") or "").strip("<> ")
+        if incoming_message_id:
+            existing = Mailbox.sudo().search([
+                ("user_id", "=", user.id),
+                ("message_id", "=", incoming_message_id),
+            ], limit=1)
+            if existing:
+                _logger.debug(
+                    "Personal mailbox dedupe: skipping already imported %s for %s",
+                    incoming_message_id, user.login,
+                )
+                return existing.id
+
         body, attachments = FetchmailServer._parse_message_body_and_attachments(msg)
 
         values = {
             "user_id": user.id,
             "folder_id": inbox.id,
             "name": FetchmailServer._decode_header(msg, "subject") or _("(No subject)"),
-            "message_id": (msg.get("message-id") or "").strip("<> "),
+            "message_id": incoming_message_id,
             "email_from": FetchmailServer._decode_header(msg, "from"),
             "email_to": FetchmailServer._decode_header(msg, "to"),
             "email_cc": FetchmailServer._decode_header(msg, "cc"),
