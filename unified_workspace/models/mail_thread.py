@@ -16,8 +16,14 @@ class MailThread(models.AbstractModel):
     @api.model
     def message_process(self, model, message, custom_values=None,
                         save_original=False, strip_attachments=False,
-                        thread_model=None):
-        """Route personal emails to user inboxes before alias routing."""
+                        thread_id=None):
+        """Route personal emails to user inboxes before alias routing.
+
+        The signature must mirror mail.thread.message_process exactly: Odoo 18
+        takes thread_id, not thread_model. The earlier invented thread_model
+        kwarg made every super() call raise TypeError, so all non-personal
+        mail silently failed instead of reaching alias routing.
+        """
         msg = email.message_from_bytes(message) if isinstance(message, bytes) else email.message_from_string(message)
         to_addresses = self._extract_to_addresses(msg)
         matched_user = self._match_personal_user(to_addresses)
@@ -28,7 +34,7 @@ class MailThread(models.AbstractModel):
             custom_values=custom_values,
             save_original=save_original,
             strip_attachments=strip_attachments,
-            thread_model=thread_model,
+            thread_id=thread_id,
         )
 
     @api.model
