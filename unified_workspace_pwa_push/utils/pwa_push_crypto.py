@@ -250,6 +250,11 @@ def build_push_headers(endpoint, private_key_b64url, public_key_b64url,
     return {
         "Authorization": f"vapid t={jwt_token}, k={public_key_b64url}",
         "TTL": str(ttl),
+        # Utan Urgency behandlar FCM pushen som "normal" och Android
+        # buffrar den pa last skarm tills enheten vacks: Chrilles telefon
+        # var tyst hela dagen och fick allt i en skur vid upplasning
+        # (2026-09-04). Arendenotiser ska vacka enheten.
+        "Urgency": "high",
         "Content-Encoding": "aes128gcm",
         "Content-Type": "application/octet-stream",
     }
