@@ -28,7 +28,27 @@ class MailThread(models.AbstractModel):
         to_addresses = self._extract_to_addresses(msg)
         matched_user = self._match_personal_user(to_addresses)
         if matched_user:
-            return self._create_personal_mailbox_message(matched_user, msg, message)
+            record_id = self._create_personal_mailbox_message(matched_user, msg, message)
+            # Ett mail till BÅDE en personlig adress och en tråd (t.ex. svar
+            # på en RFQ som gått till chrille@ + catchall@) får inte slukas av
+            # inkorgen: trådens chatter och notiser uteblev (Magdalena/RFQ-00005,
+            # 2026-09-07). Kör ordinarie routing också, men ENDAST vid säker
+            # trådmatchning så att bounce-vägen aldrig kan nås.
+            if self._has_thread_match(msg):
+                try:
+                    super().message_process(
+                        model, message,
+                        custom_values=custom_values,
+                        save_original=save_original,
+                        strip_attachments=strip_attachments,
+                        thread_id=thread_id,
+                    )
+                except Exception:
+                    _logger.exception(
+                        "Thread routing after personal delivery failed for %s",
+                        msg.get("message-id"),
+                    )
+            return record_id
         catchall_user = self._match_catchall_fallback_user(to_addresses)
         if catchall_user:
             # Catchall-adresserat mail får ALDRIG nå Odoos bounce-väg: vår
@@ -45,6 +65,19 @@ class MailThread(models.AbstractModel):
             strip_attachments=strip_attachments,
             thread_id=thread_id,
         )
+
+    @api.model
+    def _has_thread_match(self, msg):
+        """True when References/In-Reply-To points at an existing message."""
+        refs = []
+        for header in ("in-reply-to", "references"):
+            value = msg.get(header, "") or ""
+            refs.extend(r.strip("<> \t") for r in value.split() if r.strip("<> \t"))
+        if not refs:
+            return False
+        return bool(self.env["mail.message"].sudo().search_count(
+            [("message_id", "in", [f"<{r}>" for r in refs] + refs)],
+        ))
 
     @api.model
     def _match_catchall_fallback_user(self, addresses):
