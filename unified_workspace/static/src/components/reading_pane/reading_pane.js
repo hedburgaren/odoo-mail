@@ -129,7 +129,7 @@ export class ReadingPane extends Component {
 
     onViewContact() {
         if (this.message.partner_id) {
-            this.mailbox.env.services.action.doAction({
+            this.mailbox._doAction({
                 type: "ir.actions.act_window",
                 res_model: "res.partner",
                 res_id: this.message.partner_id[0],
