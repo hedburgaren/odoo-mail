@@ -84,10 +84,14 @@ class MailComposeMessage(models.TransientModel):
         signature = str(self.env.user._get_personal_signature(self.partner_ids) or "")
         if not signature or signature in body:
             return body
-        marker = '<div class="uw_quote"'
-        idx = body.find(marker)
-        if idx >= 0:
-            return body[:idx] + "<br/>" + signature + body[idx:]
+        # Header-raden först: användartext kan ligga INUTI uw_quote-diven
+        # (editorn flyttar in den), och ett div-ankare satte då signaturen
+        # före texten (2026-09-07 kväll). Div-ankaret är fallback för äldre
+        # utkast, sist ren append.
+        for marker in ('<p class="uw_quote_header"', '<div class="uw_quote"'):
+            idx = body.find(marker)
+            if idx >= 0:
+                return body[:idx] + "<br/>" + signature + body[idx:]
         return body + "<br/>" + signature
 
     def _save_sent_copy(self):

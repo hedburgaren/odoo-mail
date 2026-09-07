@@ -879,10 +879,15 @@ class MailPersonalMailbox(models.Model):
             date=self.date,
             sender=self.email_from or _("Unknown sender"),
         )
-        # uw_quote-markören låter signaturinfogningen träffa rätt: signaturen
-        # ska in i slutet av svaret, OVANFÖR citatet (Chrille 2026-09-07).
+        # uw_quote_header-markören låter signaturinfogningen träffa rätt:
+        # signaturen ska in i slutet av svaret, OVANFÖR citatet (Chrille
+        # 2026-09-07). Markören sitter på header-RADEN, inte diven: editorn
+        # kan flytta in användarens text i diven, och ett div-ankare lade då
+        # signaturen FÖRE texten. Skrivraden är <p><br></p>, en tom <p></p>
+        # kollapsar och skickar in markören i citatet.
         return Markup(
-            '<p></p><div class="uw_quote"><p>%s</p><blockquote>%s</blockquote></div>'
+            '<p><br></p><div class="uw_quote"><p class="uw_quote_header">%s</p>'
+            "<blockquote>%s</blockquote></div>"
         ) % (header, self.body or Markup(""))
 
     @api.model
