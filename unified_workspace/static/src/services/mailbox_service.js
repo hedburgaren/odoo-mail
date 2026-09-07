@@ -468,7 +468,12 @@ export class MailboxService extends Reactive {
         if (!emailString) {
             return [];
         }
-        return emailString.split(/[,;\s]+/).map((e) => e.trim()).filter((e) => e.includes("@"));
+        // Plocka ut själva adressen: rubriker kommer som
+        // '"Magdalena Barnett" <magdalena.barnett@epsotech.com>' och en
+        // token-split lämnade vinkelparenteserna kvar, så partner-uppslaget
+        // missade befintliga kontakter (2026-09-07).
+        const matches = emailString.match(/[A-Za-z0-9._%+'-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g) || [];
+        return [...new Set(matches)];
     }
 
     async openDiscuss() {
