@@ -29,6 +29,15 @@ class MailThread(models.AbstractModel):
         matched_user = self._match_personal_user(to_addresses)
         if matched_user:
             return self._create_personal_mailbox_message(matched_user, msg, message)
+        catchall_user = self._match_catchall_fallback_user(to_addresses)
+        if catchall_user:
+            # Catchall-adresserat mail får ALDRIG nå Odoos bounce-väg: vår
+            # personliga sändning auto-raderar sitt Message-ID, så svar på
+            # personliga mail kan inte trådmatchas. Odoo bouncade då varje
+            # IMAP-omhämtning (Seen-flaggan fastnar inte hos Gmail) och en
+            # kund fick 24 studsar på ett svar (2026-09-07). Routa istället
+            # till direktörens inkorg; Message-ID-dedupen gör det idempotent.
+            return self._create_personal_mailbox_message(catchall_user, msg, message)
         return super().message_process(
             model, message,
             custom_values=custom_values,
@@ -36,6 +45,30 @@ class MailThread(models.AbstractModel):
             strip_attachments=strip_attachments,
             thread_id=thread_id,
         )
+
+    @api.model
+    def _match_catchall_fallback_user(self, addresses):
+        """Return the fallback user for catchall-addressed mail, if any.
+
+        Applies when a recipient is catchall@<alias-domain>. The fallback is
+        the configured user (unified_workspace.catchall_fallback_user_id),
+        default: the personal-mailbox admin (uid 2).
+        """
+        if not addresses:
+            return self.env["res.users"]
+        domains = self.env["mail.alias.domain"].sudo().search([])
+        catchalls = {
+            f"{d.catchall_alias}@{d.name}".lower()
+            for d in domains if d.catchall_alias
+        }
+        if not catchalls.intersection(addresses):
+            return self.env["res.users"]
+        Param = self.env["ir.config_parameter"].sudo()
+        uid = int(Param.get_param("unified_workspace.catchall_fallback_user_id") or "2")
+        user = self.env["res.users"].browse(uid)
+        if user.exists() and user.active and not user.share:
+            return user
+        return self.env["res.users"]
 
     @api.model
     def _extract_to_addresses(self, msg):

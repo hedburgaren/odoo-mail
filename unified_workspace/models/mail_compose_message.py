@@ -55,6 +55,11 @@ class MailComposeMessage(models.TransientModel):
             "subject": self.subject or _("(No subject)"),
             "body_html": self.body or "",
             "email_from": self.email_from or self.env.user.email_formatted,
+            # Utan explicit reply_to satte Odoo catchall@<domän> som Reply-To.
+            # Svar hamnade då i catchall-routing där tråden inte finns kvar
+            # (auto_delete raderar vårt Message-ID) och bouncades: Oscar fick
+            # 24 studsar på ett svar (2026-09-07). Svar ska gå till avsändaren.
+            "reply_to": self.email_from or self.env.user.email_formatted,
             "recipient_ids": [(6, 0, to_partners.ids)],
             "email_cc": self.email_cc or "",
             "attachment_ids": [(6, 0, self.attachment_ids.ids)],
