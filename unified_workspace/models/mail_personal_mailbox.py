@@ -879,8 +879,10 @@ class MailPersonalMailbox(models.Model):
             date=self.date,
             sender=self.email_from or _("Unknown sender"),
         )
+        # uw_quote-markören låter signaturinfogningen träffa rätt: signaturen
+        # ska in i slutet av svaret, OVANFÖR citatet (Chrille 2026-09-07).
         return Markup(
-            "<p></p><p>%s</p><blockquote>%s</blockquote>"
+            '<p></p><div class="uw_quote"><p>%s</p><blockquote>%s</blockquote></div>'
         ) % (header, self.body or Markup(""))
 
     @api.model

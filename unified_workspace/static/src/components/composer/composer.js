@@ -247,11 +247,10 @@ export class Composer extends Component {
         const bccPartnerIds = this.state.bcc.map((email) => emailToPartner[key(email)]).filter(Boolean);
         const allPartnerIds = [...new Set([...toPartnerIds, ...ccPartnerIds, ...bccPartnerIds])];
 
-        let body = this.getBody();
-        const signature = await this._getSignature();
-        if (signature && !body.includes(signature)) {
-            body += "<br/>" + signature;
-        }
+        // Signaturen infogas server-side vid sändning (_ensure_signature),
+        // ovanför citatet. Klientens append byggde på mail.store-uid som
+        // saknas här och hamnade dessutom under citatet.
+        const body = this.getBody();
 
         const composerValues = {
             composition_mode: "personal_email",
