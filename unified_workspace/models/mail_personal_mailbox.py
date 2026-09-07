@@ -7,6 +7,7 @@ import re
 from datetime import datetime, time, timedelta, timezone
 
 import vobject
+from markupsafe import Markup
 
 from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError, UserError
@@ -870,14 +871,17 @@ class MailPersonalMailbox(models.Model):
 
     def _prepare_reply_body(self):
         self.ensure_one()
-        return _(
-            "<p></p>"
-            "<p>On %(date)s, %(sender)s wrote:</p>"
-            "<blockquote>%(body)s</blockquote>",
+        # HTML-taggar får inte ligga i _()-strängen: när ett argument är
+        # Markup (body är fields.Html) escapar Odoo hela mallen och taggarna
+        # visas som råtext i composern. Endast texten översätts.
+        header = _(
+            "On %(date)s, %(sender)s wrote:",
             date=self.date,
             sender=self.email_from or _("Unknown sender"),
-            body=self.body or "",
         )
+        return Markup(
+            "<p></p><p>%s</p><blockquote>%s</blockquote>"
+        ) % (header, self.body or Markup(""))
 
     @api.model
     def _cron_auto_archive_and_delete(self):
