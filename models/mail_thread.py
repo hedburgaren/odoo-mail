@@ -16,20 +16,92 @@ class MailThread(models.AbstractModel):
     @api.model
     def message_process(self, model, message, custom_values=None,
                         save_original=False, strip_attachments=False,
-                        thread_model=None):
-        """Route personal emails to user inboxes before alias routing."""
+                        thread_id=None):
+        """Route personal emails to user inboxes before alias routing.
+
+        The signature must mirror mail.thread.message_process exactly: Odoo 18
+        takes thread_id, not thread_model. The earlier invented thread_model
+        kwarg made every super() call raise TypeError, so all non-personal
+        mail silently failed instead of reaching alias routing.
+        """
         msg = email.message_from_bytes(message) if isinstance(message, bytes) else email.message_from_string(message)
         to_addresses = self._extract_to_addresses(msg)
         matched_user = self._match_personal_user(to_addresses)
         if matched_user:
-            return self._create_personal_mailbox_message(matched_user, msg, message)
+            record_id = self._create_personal_mailbox_message(matched_user, msg, message)
+            # Ett mail till BÅDE en personlig adress och en tråd (t.ex. svar
+            # på en RFQ som gått till chrille@ + catchall@) får inte slukas av
+            # inkorgen: trådens chatter och notiser uteblev (Magdalena/RFQ-00005,
+            # 2026-09-07). Kör ordinarie routing också, men ENDAST vid säker
+            # trådmatchning så att bounce-vägen aldrig kan nås.
+            if self._has_thread_match(msg):
+                try:
+                    super().message_process(
+                        model, message,
+                        custom_values=custom_values,
+                        save_original=save_original,
+                        strip_attachments=strip_attachments,
+                        thread_id=thread_id,
+                    )
+                except Exception:
+                    _logger.exception(
+                        "Thread routing after personal delivery failed for %s",
+                        msg.get("message-id"),
+                    )
+            return record_id
+        catchall_user = self._match_catchall_fallback_user(to_addresses)
+        if catchall_user:
+            # Catchall-adresserat mail får ALDRIG nå Odoos bounce-väg: vår
+            # personliga sändning auto-raderar sitt Message-ID, så svar på
+            # personliga mail kan inte trådmatchas. Odoo bouncade då varje
+            # IMAP-omhämtning (Seen-flaggan fastnar inte hos Gmail) och en
+            # kund fick 24 studsar på ett svar (2026-09-07). Routa istället
+            # till direktörens inkorg; Message-ID-dedupen gör det idempotent.
+            return self._create_personal_mailbox_message(catchall_user, msg, message)
         return super().message_process(
             model, message,
             custom_values=custom_values,
             save_original=save_original,
             strip_attachments=strip_attachments,
-            thread_model=thread_model,
+            thread_id=thread_id,
         )
+
+    @api.model
+    def _has_thread_match(self, msg):
+        """True when References/In-Reply-To points at an existing message."""
+        refs = []
+        for header in ("in-reply-to", "references"):
+            value = msg.get(header, "") or ""
+            refs.extend(r.strip("<> \t") for r in value.split() if r.strip("<> \t"))
+        if not refs:
+            return False
+        return bool(self.env["mail.message"].sudo().search_count(
+            [("message_id", "in", [f"<{r}>" for r in refs] + refs)],
+        ))
+
+    @api.model
+    def _match_catchall_fallback_user(self, addresses):
+        """Return the fallback user for catchall-addressed mail, if any.
+
+        Applies when a recipient is catchall@<alias-domain>. The fallback is
+        the configured user (unified_workspace.catchall_fallback_user_id),
+        default: the personal-mailbox admin (uid 2).
+        """
+        if not addresses:
+            return self.env["res.users"]
+        domains = self.env["mail.alias.domain"].sudo().search([])
+        catchalls = {
+            f"{d.catchall_alias}@{d.name}".lower()
+            for d in domains if d.catchall_alias
+        }
+        if not catchalls.intersection(addresses):
+            return self.env["res.users"]
+        Param = self.env["ir.config_parameter"].sudo()
+        uid = int(Param.get_param("unified_workspace.catchall_fallback_user_id") or "2")
+        user = self.env["res.users"].browse(uid)
+        if user.exists() and user.active and not user.share:
+            return user
+        return self.env["res.users"]
 
     @api.model
     def _extract_to_addresses(self, msg):

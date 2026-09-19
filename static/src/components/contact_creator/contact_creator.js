@@ -20,6 +20,10 @@ export class ContactCreator extends Component {
     setup() {
         this.orm = useService("orm");
         this.notification = useService("notification");
+        // Defensivt: skulle en rå header-token ('<adress>' eller
+        // 'Namn <adress>') nå hit får partnern ändå en ren adress.
+        const match = this.props.email.match(/[A-Za-z0-9._%+'-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);
+        this.cleanEmail = match ? match[0] : this.props.email;
         this.state = useState({
             firstName: "",
             lastName: "",
@@ -30,7 +34,7 @@ export class ContactCreator extends Component {
     }
 
     _prefillFromEmail() {
-        const local = this.props.email.split("@")[0] || "";
+        const local = this.cleanEmail.split("@")[0] || "";
         const parts = local.replace(/[._]+/g, " ").trim().split(/\s+/);
         if (parts.length > 1) {
             this.state.firstName = parts[0];
@@ -54,7 +58,7 @@ export class ContactCreator extends Component {
             }
             const values = {
                 name: name,
-                email: this.props.email,
+                email: this.cleanEmail,
                 company_type: "person",
             };
             if (companyId) {
@@ -68,6 +72,9 @@ export class ContactCreator extends Component {
                 this.props.onCreate(partnerId);
             }
             this.props.close();
+        } catch (error) {
+            const message = error?.data?.message || error?.message || "Failed to create contact.";
+            this.notification.add(message, { type: "danger" });
         } finally {
             this.state.isLoading = false;
         }

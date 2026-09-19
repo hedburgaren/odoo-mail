@@ -7,6 +7,7 @@ import re
 from datetime import datetime, time, timedelta, timezone
 
 import vobject
+from markupsafe import Markup
 
 from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError, UserError
@@ -870,14 +871,24 @@ class MailPersonalMailbox(models.Model):
 
     def _prepare_reply_body(self):
         self.ensure_one()
-        return _(
-            "<p></p>"
-            "<p>On %(date)s, %(sender)s wrote:</p>"
-            "<blockquote>%(body)s</blockquote>",
+        # HTML-taggar får inte ligga i _()-strängen: när ett argument är
+        # Markup (body är fields.Html) escapar Odoo hela mallen och taggarna
+        # visas som råtext i composern. Endast texten översätts.
+        header = _(
+            "On %(date)s, %(sender)s wrote:",
             date=self.date,
             sender=self.email_from or _("Unknown sender"),
-            body=self.body or "",
         )
+        # uw_quote_header-markören låter signaturinfogningen träffa rätt:
+        # signaturen ska in i slutet av svaret, OVANFÖR citatet (Chrille
+        # 2026-09-07). Markören sitter på header-RADEN, inte diven: editorn
+        # kan flytta in användarens text i diven, och ett div-ankare lade då
+        # signaturen FÖRE texten. Skrivraden är <p><br></p>, en tom <p></p>
+        # kollapsar och skickar in markören i citatet.
+        return Markup(
+            '<p><br></p><div class="uw_quote"><p class="uw_quote_header">%s</p>'
+            "<blockquote>%s</blockquote></div>"
+        ) % (header, self.body or Markup(""))
 
     @api.model
     def _cron_auto_archive_and_delete(self):

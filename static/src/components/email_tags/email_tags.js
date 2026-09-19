@@ -42,7 +42,9 @@ export class EmailTags extends Component {
     }
 
     addEmail(raw) {
-        const emails = raw.split(/[,;\s]+/).map((e) => e.trim()).filter(Boolean);
+        // Klistrad text kan vara 'Namn <adress>': extrahera själva adressen
+        // så att chips aldrig bär vinkelparenteser eller display-namn.
+        const emails = raw.match(/[A-Za-z0-9._%+'-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g) || [];
         for (const email of emails) {
             if (!EMAIL_RE.test(email)) {
                 continue;

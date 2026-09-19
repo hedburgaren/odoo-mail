@@ -239,16 +239,18 @@ export class Composer extends Component {
         if (!emailToPartner) {
             return null;
         }
-        const toPartnerIds = this.state.to.map((email) => emailToPartner[email]).filter(Boolean);
-        const ccPartnerIds = this.state.cc.map((email) => emailToPartner[email]).filter(Boolean);
-        const bccPartnerIds = this.state.bcc.map((email) => emailToPartner[email]).filter(Boolean);
+        // Nycklarna i emailToPartner är gemener: slå upp likadant, annars
+        // tappas mottagare med versaler i adressen (Magdalena-buggen 2026-09-07).
+        const key = (email) => email.trim().toLowerCase();
+        const toPartnerIds = this.state.to.map((email) => emailToPartner[key(email)]).filter(Boolean);
+        const ccPartnerIds = this.state.cc.map((email) => emailToPartner[key(email)]).filter(Boolean);
+        const bccPartnerIds = this.state.bcc.map((email) => emailToPartner[key(email)]).filter(Boolean);
         const allPartnerIds = [...new Set([...toPartnerIds, ...ccPartnerIds, ...bccPartnerIds])];
 
-        let body = this.getBody();
-        const signature = await this._getSignature();
-        if (signature && !body.includes(signature)) {
-            body += "<br/>" + signature;
-        }
+        // Signaturen infogas server-side vid sändning (_ensure_signature),
+        // ovanför citatet. Klientens append byggde på mail.store-uid som
+        // saknas här och hamnade dessutom under citatet.
+        const body = this.getBody();
 
         const composerValues = {
             composition_mode: "personal_email",

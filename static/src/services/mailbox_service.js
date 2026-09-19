@@ -365,17 +365,17 @@ export class MailboxService extends Reactive {
 
     async createLead(messageId) {
         const action = await this.orm.call("mail.personal.mailbox", "action_create_lead", [[messageId]]);
-        this.env.services.action.doAction(action);
+        this._doAction(action);
     }
 
     async createTask(messageId) {
         const action = await this.orm.call("mail.personal.mailbox", "action_create_task", [[messageId]]);
-        this.env.services.action.doAction(action);
+        this._doAction(action);
     }
 
     async bookMeeting(messageId) {
         const action = await this.orm.call("mail.personal.mailbox", "action_book_meeting", [[messageId]]);
-        this.env.services.action.doAction(action);
+        this._doAction(action);
     }
 
     async reply(messageId, mode = "reply") {
@@ -464,11 +464,27 @@ export class MailboxService extends Reactive {
         ).then((records) => records[0] || null);
     }
 
+    _doAction(action) {
+        // Odoo 18:s doAction kräver views-arrayen på inline act_window-dicts;
+        // enbart view_mode ger 'Cannot read properties of undefined (reading
+        // map)' i _preprocessAction (Log Activity-kraschen 2026-09-07).
+        if (action && action.type === "ir.actions.act_window" && !action.views) {
+            const modes = (action.view_mode || "form").split(",");
+            action.views = modes.map((mode) => [false, mode]);
+        }
+        return this.env.services.action.doAction(action);
+    }
+
     _extractEmails(emailString) {
         if (!emailString) {
             return [];
         }
-        return emailString.split(/[,;\s]+/).map((e) => e.trim()).filter((e) => e.includes("@"));
+        // Plocka ut själva adressen: rubriker kommer som
+        // '"Magdalena Barnett" <magdalena.barnett@epsotech.com>' och en
+        // token-split lämnade vinkelparenteserna kvar, så partner-uppslaget
+        // missade befintliga kontakter (2026-09-07).
+        const matches = emailString.match(/[A-Za-z0-9._%+'-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g) || [];
+        return [...new Set(matches)];
     }
 
     async openDiscuss() {
@@ -575,27 +591,27 @@ export class MailboxService extends Reactive {
 
     async logActivity(messageId) {
         const action = await this.orm.call("mail.personal.mailbox", "action_log_activity", [[messageId]]);
-        this.env.services.action.doAction(action);
+        this._doAction(action);
     }
 
     async saveAttachmentsToRecord(messageId) {
         const action = await this.orm.call("mail.personal.mailbox", "action_save_attachments_to_record", [[messageId]]);
         if (action) {
-            this.env.services.action.doAction(action);
+            this._doAction(action);
         }
     }
 
     async saveAttachmentsToDms(messageId) {
         const action = await this.orm.call("mail.personal.mailbox", "action_save_attachments_to_dms", [[messageId]]);
         if (action) {
-            this.env.services.action.doAction(action);
+            this._doAction(action);
         }
     }
 
     async saveToKnowledge(messageId) {
         const action = await this.orm.call("mail.personal.mailbox", "action_save_to_knowledge", [[messageId]]);
         if (action) {
-            this.env.services.action.doAction(action);
+            this._doAction(action);
         }
     }
 
@@ -621,7 +637,7 @@ export class MailboxService extends Reactive {
     async logTimeToTask(messageId) {
         const action = await this.orm.call("mail.personal.mailbox", "action_log_time_to_task", [[messageId]]);
         if (action) {
-            this.env.services.action.doAction(action);
+            this._doAction(action);
         }
         await this.loadMessages();
     }
