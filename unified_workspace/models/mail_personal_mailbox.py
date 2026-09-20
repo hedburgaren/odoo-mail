@@ -4,7 +4,7 @@
 import base64
 import logging
 import re
-from datetime import datetime, time, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 
 import vobject
 from markupsafe import Markup
@@ -255,7 +255,13 @@ class MailPersonalMailbox(models.Model):
             vals["body"] = html_sanitize(vals["body"])
         result = super().write(vals)
         if vals.get("attachment_ids") and not self.calendar_event_id:
-            self.action_parse_calendar_invitation()
+            try:
+                self.action_parse_calendar_invitation()
+            except Exception:
+                _logger.exception(
+                    "Calendar invitation parsing failed for personal email %s",
+                    self.id,
+                )
         return result
 
     def action_mark_read(self):
@@ -408,6 +414,18 @@ class MailPersonalMailbox(models.Model):
             return None
 
         for vevent in cal.vevent_list:
+            dtstart_prop = getattr(vevent, "dtstart", None)
+            dtstart = dtstart_prop.value if dtstart_prop else None
+            # En inbjudan utan DTSTART kan inte placeras i kalendern. Hoppa
+            # over den i stallet for att kasta: metoden kor aven vid
+            # inkommande mail-routing, och ett undantag har slukar hela mailet.
+            if dtstart is None:
+                _logger.warning(
+                    "Skipping VEVENT without DTSTART in .ics attachment %s",
+                    attachment.name,
+                )
+                continue
+
             uid = getattr(vevent, "uid", None)
             uid = uid.value if uid else None
             name = getattr(vevent, "summary", None)
@@ -417,24 +435,35 @@ class MailPersonalMailbox(models.Model):
             location = getattr(vevent, "location", None)
             location = location.value if location else ""
 
-            dtstart = getattr(vevent, "dtstart", None)
-            dtstart = dtstart.value if dtstart else None
-            dtend = getattr(vevent, "dtend", None)
-            dtend = dtend.value if dtend else None
+            dtend_prop = getattr(vevent, "dtend", None)
+            dtend = dtend_prop.value if dtend_prop else None
 
-            allday = not isinstance(dtstart, datetime)
-            if allday:
-                start = datetime.combine(dtstart, time(8, 0))
-                if dtend:
-                    stop = datetime.combine(dtend, time(18, 0))
+            try:
+                if isinstance(dtstart, datetime):
+                    allday = False
+                    start = self._ics_datetime_to_utc(dtstart)
+                    # Ett datum som DTEND pa ett tidsatt DTSTART ar trasigt;
+                    # tolka det som samma klockslag sa eventet anda hamnar ratt.
+                    if dtend and not isinstance(dtend, datetime) and isinstance(dtend, date):
+                        dtend = datetime.combine(dtend, start.time())
+                    stop = self._ics_datetime_to_utc(dtend) if dtend else None
+                    # Saknat, lika eller omvant DTEND far Odoo att avvisa
+                    # eventet. Fall tillbaka pa en timme. (Den gamla
+                    # replace(hour + 1) kastade ValueError for 23:xx.)
+                    if not stop or stop <= start:
+                        stop = start + timedelta(hours=1)
                 else:
-                    stop = datetime.combine(dtstart, time(18, 0))
-            else:
-                start = self._ics_datetime_to_utc(dtstart)
-                if dtend:
-                    stop = self._ics_datetime_to_utc(dtend)
-                else:
-                    stop = start and start.replace(hour=start.hour + 1)
+                    allday = True
+                    start = datetime.combine(dtstart, time(8, 0))
+                    stop = datetime.combine(dtend, time(18, 0)) if dtend else None
+                    if not stop or stop <= start:
+                        stop = datetime.combine(dtstart, time(18, 0))
+            except (TypeError, ValueError) as e:
+                _logger.warning(
+                    "Skipping malformed VEVENT in .ics attachment %(name)s: %(error)s",
+                    {"name": attachment.name, "error": e},
+                )
+                continue
 
             organizer = getattr(vevent, "organizer", None)
             organizer_email = ""

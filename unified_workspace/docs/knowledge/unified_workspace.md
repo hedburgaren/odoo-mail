@@ -31,6 +31,9 @@ Personal email messages. Key fields and behaviours:
 Calendar methods:
 
 - `_find_ics_attachments()` / `_parse_ics_attachment()` parse `vobject` data.
+  A `VEVENT` without `DTSTART` is skipped with a warning, and a missing,
+  equal or inverted `DTEND` falls back to one hour, so a malformed invite can
+  never raise and swallow the email it arrived with.
 - `action_parse_calendar_invitation()` creates or updates `calendar.event`
   from the first `.ics` attachment.
 - `action_accept_event()` / `action_tentative_event()` /

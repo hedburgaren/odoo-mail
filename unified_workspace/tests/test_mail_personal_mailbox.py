@@ -152,6 +152,52 @@ class TestMailPersonalMailbox(TransactionCase):
         self.assertEqual(message.calendar_rsvp_state, "declined")
         self.assertEqual(attendee.state, "declined")
 
+    def test_parse_invitation_without_dtstart_is_skipped(self):
+        ics = ICS_INVITATION.replace("DTSTART:20251231T090000Z\n", "")
+        attachment = self.env["ir.attachment"].create({
+            "name": "broken.ics",
+            "mimetype": "text/calendar",
+            "datas": base64.b64encode(ics.encode("utf-8")),
+        })
+        message = self.env["mail.personal.mailbox"].create({
+            "user_id": self.user.id,
+            "folder_id": self.folder.id,
+            "name": "Broken invite",
+            "email_from": "organizer@example.com",
+            "attachment_ids": [(6, 0, attachment.ids)],
+        })
+        # Får inte kasta: routningen av själva mailet får aldrig gå sönder.
+        self.assertFalse(message.action_parse_calendar_invitation())
+        self.assertFalse(message.calendar_event_id)
+
+    def test_parse_invitation_late_without_dtend(self):
+        ics = (
+            ICS_INVITATION.replace("DTEND:20251231T100000Z\n", "")
+            .replace("DTSTART:20251231T090000Z", "DTSTART:20251231T233000Z")
+        )
+        attachment = self.env["ir.attachment"].create({
+            "name": "late.ics",
+            "mimetype": "text/calendar",
+            "datas": base64.b64encode(ics.encode("utf-8")),
+        })
+        message = self.env["mail.personal.mailbox"].create({
+            "user_id": self.user.id,
+            "folder_id": self.folder.id,
+            "name": "Late invite",
+            "email_from": "organizer@example.com",
+            "attachment_ids": [(6, 0, attachment.ids)],
+        })
+        message.action_parse_calendar_invitation()
+        self.assertTrue(message.calendar_event_id)
+        self.assertEqual(
+            message.calendar_event_id.start,
+            fields.Datetime.to_datetime("2025-12-31 23:30:00"),
+        )
+        self.assertEqual(
+            message.calendar_event_id.stop,
+            fields.Datetime.to_datetime("2026-01-01 00:30:00"),
+        )
+
     def test_save_sent_copy_with_attachment(self):
         partner = self.env["res.partner"].create({
             "name": "Recipient",

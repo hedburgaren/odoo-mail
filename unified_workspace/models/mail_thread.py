@@ -175,8 +175,16 @@ class MailThread(models.AbstractModel):
         if attachments:
             mailbox_message.attachment_ids = [(6, 0, attachments.ids)]
 
-        # Parse any calendar invitation attachments automatically.
-        mailbox_message.action_parse_calendar_invitation()
+        # Parse any calendar invitation attachments automatically. En trasig
+        # inbjudan far aldrig stoppa sjalva mailet: ett undantag har skulle
+        # sluka hela leveransen.
+        try:
+            mailbox_message.action_parse_calendar_invitation()
+        except Exception:
+            _logger.exception(
+                "Calendar invitation parsing failed for personal email %s",
+                mailbox_message.id,
+            )
 
         _logger.info(
             "Routed personal email %(subject)s to user %(user)s",
