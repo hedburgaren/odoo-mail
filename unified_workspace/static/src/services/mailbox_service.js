@@ -33,6 +33,7 @@ export class MailboxService extends Reactive {
         this.agenda = [];
         this.channels = [];
         this.inboxCount = 0;
+        this.totalUnreadCount = 0;
         this.activePanel = "mail";
         this.groupInboxMessages = [];
         this.selectedGroupMessageId = null;
@@ -82,10 +83,40 @@ export class MailboxService extends Reactive {
             ["id", "name", "folder_type", "sequence", "message_count", "parent_id"],
             { order: "sequence, name" }
         );
+        await this._loadFolderUnreadCounts();
         if (!this.selectedFolderId && this.folders.length) {
             const inbox = this.folders.find((f) => f.folder_type === "inbox");
             this.selectedFolderId = inbox ? inbox.id : this.folders[0].id;
         }
+    }
+
+    /**
+     * Attach an unread counter to each folder and keep the workspace total.
+     *
+     * message_count is the folder total; the unread split is fetched in one
+     * grouped read so the sidebar can show Gmail-style unread badges.
+     */
+    async _loadFolderUnreadCounts() {
+        const groups = await this.orm.readGroup(
+            "mail.personal.mailbox",
+            [["state", "=", "unread"]],
+            ["folder_id"],
+            ["folder_id"]
+        );
+        const unreadByFolder = {};
+        let total = 0;
+        for (const group of groups) {
+            const count = group.folder_id_count ?? group.__count ?? 0;
+            total += count;
+            const folderId = Array.isArray(group.folder_id) ? group.folder_id[0] : group.folder_id;
+            if (folderId) {
+                unreadByFolder[folderId] = count;
+            }
+        }
+        for (const folder of this.folders) {
+            folder.unread_count = unreadByFolder[folder.id] || 0;
+        }
+        this.totalUnreadCount = total;
     }
 
     async loadAgenda() {
@@ -286,6 +317,7 @@ export class MailboxService extends Reactive {
         if (message) {
             message.state = "read";
         }
+        await this._loadFolderUnreadCounts();
     }
 
     async markAsUnread(messageId) {
@@ -294,6 +326,7 @@ export class MailboxService extends Reactive {
         if (message) {
             message.state = "unread";
         }
+        await this._loadFolderUnreadCounts();
     }
 
     async toggleStarred(messageId) {
@@ -316,6 +349,7 @@ export class MailboxService extends Reactive {
         await this.orm.call("mail.personal.mailbox", "action_move_to_trash", [[messageId]]);
         this.messages = this.messages.filter((m) => m.id !== messageId);
         this.selectedMessageId = null;
+        await this._loadFolderUnreadCounts();
     }
 
     selectNextMessage() {

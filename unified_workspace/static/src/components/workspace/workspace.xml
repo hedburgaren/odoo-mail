@@ -13,6 +13,41 @@
                 <EmailList/>
                 <ReadingPane/>
             </t>
+
+            <div
+                t-if="state.showShortcuts"
+                class="o-unified-shortcuts-overlay"
+                t-on-click="() => closeShortcuts()">
+                <div
+                    class="o-unified-shortcuts-dialog"
+                    role="dialog"
+                    aria-label="Keyboard shortcuts"
+                    t-on-click="onDialogClick">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="m-0">Keyboard shortcuts</h5>
+                        <button
+                            type="button"
+                            class="btn-close"
+                            aria-label="Close"
+                            t-on-click="() => closeShortcuts()"/>
+                    </div>
+                    <div class="row g-4">
+                        <t t-foreach="shortcutGroups" t-as="group" t-key="group.title">
+                            <div class="col-12 col-md-4">
+                                <h6 class="text-uppercase text-muted small fw-bold" t-esc="group.title"/>
+                                <div
+                                    t-foreach="group.items"
+                                    t-as="item"
+                                    t-key="item.keys"
+                                    class="o-unified-shortcut-row d-flex justify-content-between align-items-center">
+                                    <span t-esc="item.label"/>
+                                    <kbd t-esc="item.keys"/>
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+                </div>
+            </div>
         </div>
     </t>
 </templates>

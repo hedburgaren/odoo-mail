@@ -19,9 +19,15 @@
         &.active {
             background-color: rgba(0, 0, 0, 0.05);
         }
+
+        &:focus-visible {
+            outline: 2px solid var(--o-color-primary);
+            outline-offset: -2px;
+        }
     }
 
     .o-unified-email-list-item {
+        position: relative;
         transition: background-color 0.15s ease;
 
         &:hover,
@@ -31,7 +37,44 @@
 
         &.unread {
             background-color: rgba(var(--o-color-primary-rgb), 0.05);
+
+            &::before {
+                content: "";
+                position: absolute;
+                top: 0;
+                bottom: 0;
+                left: 0;
+                width: 3px;
+                background-color: var(--o-color-primary);
+            }
+
+            .o-unified-sender {
+                color: var(--o-color-primary);
+            }
         }
+
+        &:focus-visible {
+            outline: 2px solid var(--o-color-primary);
+            outline-offset: -2px;
+        }
+
+        &[draggable="true"] {
+            cursor: grab;
+        }
+
+        &:active {
+            cursor: grabbing;
+        }
+    }
+
+    .o-unified-unread-dot {
+        display: inline-block;
+        flex: 0 0 auto;
+        width: 8px;
+        height: 8px;
+        margin-right: 6px;
+        border-radius: 50%;
+        background-color: var(--o-color-primary);
     }
 
     .o-unified-sender,
@@ -85,34 +128,24 @@
         color: #fff;
     }
 
-    .o-unified-email-list-item {
-        &[draggable="true"] {
-            cursor: grab;
-        }
-
-        &:active {
-            cursor: grabbing;
-        }
-    }
-
     .o-unified-calendar-panel {
-    .o_view_controller {
-        position: absolute;
-        inset: 0;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
+        .o_view_controller {
+            position: absolute;
+            inset: 0;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
     }
-}
 
-.o-unified-group-inbox-item {
-    transition: background-color 0.15s ease;
+    .o-unified-group-inbox-item {
+        transition: background-color 0.15s ease;
 
-    &:hover,
-    &.active {
-        background-color: rgba(var(--o-color-primary-rgb), 0.08);
+        &:hover,
+        &.active {
+            background-color: rgba(var(--o-color-primary-rgb), 0.08);
+        }
     }
-}
 
     .o-unified-agenda-item {
         transition: background-color 0.15s ease;
@@ -120,6 +153,103 @@
         &:hover {
             background-color: rgba(0, 0, 0, 0.05);
         }
+    }
+}
+
+// Right-click menu, positioned at the pointer and clamped to the viewport.
+.o-unified-context-menu {
+    position: fixed;
+    z-index: 1080;
+    min-width: 220px;
+    padding: 4px;
+    background-color: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 0.375rem;
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.18);
+
+    .o-unified-context-menu-item {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        padding: 0.375rem 0.5rem;
+        border: 0;
+        border-radius: 0.25rem;
+        background: transparent;
+        color: inherit;
+        font-size: 0.875rem;
+        text-align: left;
+
+        &:hover,
+        &:focus-visible {
+            background-color: rgba(var(--o-color-primary-rgb), 0.1);
+            outline: none;
+        }
+    }
+
+    .o-unified-context-menu-icon {
+        flex: 0 0 1.25rem;
+        width: 1.25rem;
+        text-align: center;
+        color: #6c757d;
+    }
+
+    .o-unified-context-menu-label {
+        flex: 1 1 auto;
+        padding: 0 0.5rem;
+    }
+
+    .o-unified-context-menu-shortcut {
+        flex: 0 0 auto;
+        color: #adb5bd;
+        font-size: 0.75rem;
+    }
+
+    .o-unified-context-menu-separator {
+        height: 1px;
+        margin: 4px 0;
+        background-color: rgba(0, 0, 0, 0.08);
+    }
+}
+
+// "?" shortcut cheat sheet.
+.o-unified-shortcuts-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1090;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.o-unified-shortcuts-dialog {
+    width: 100%;
+    max-width: 720px;
+    max-height: 90vh;
+    overflow: auto;
+    padding: 1.5rem;
+    background-color: #fff;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.2);
+
+    .o-unified-shortcut-row {
+        padding: 0.25rem 0;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+
+        &:last-child {
+            border-bottom: 0;
+        }
+    }
+
+    kbd {
+        padding: 0.125rem 0.375rem;
+        background-color: #f1f3f5;
+        color: #343a40;
+        border: 1px solid #dee2e6;
+        border-bottom-width: 2px;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
     }
 }
 

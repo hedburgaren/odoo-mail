@@ -26,6 +26,7 @@ export class Workspace extends Component {
         this.rootRef = useRef("root");
         this.state = useState({
             goPending: false,
+            showShortcuts: false,
         });
         onWillStart(async () => {
             await this.mailbox.loadFolders();
@@ -54,12 +55,34 @@ export class Workspace extends Component {
         if (isEditable) {
             return;
         }
+
+        const key = ev.key.toLowerCase();
+
+        // Escape and ? stay available even while the help dialog is open.
+        if (key === "escape") {
+            ev.preventDefault();
+            if (this.state.showShortcuts) {
+                this.state.showShortcuts = false;
+            } else if (this.mailbox.selectedMessageId) {
+                this._backToList();
+            }
+            return;
+        }
+        if (key === "?") {
+            ev.preventDefault();
+            this.state.showShortcuts = !this.state.showShortcuts;
+            return;
+        }
+
+        // Do not fire other shortcuts while the help dialog is open.
+        if (this.state.showShortcuts) {
+            return;
+        }
         // Do not fire shortcuts while a dialog/modal is open.
         if (document.querySelector(".modal.show, .modal[role='dialog']")) {
             return;
         }
 
-        const key = ev.key.toLowerCase();
         const messageId = this.mailbox.selectedMessageId;
 
         if (this.state.goPending) {
@@ -83,6 +106,9 @@ export class Workspace extends Component {
         } else if (key === "r" && messageId) {
             ev.preventDefault();
             this.mailbox.reply(messageId);
+        } else if (key === "a" && messageId) {
+            ev.preventDefault();
+            this.mailbox.reply(messageId, "reply_all");
         } else if (key === "f" && messageId) {
             ev.preventDefault();
             this.mailbox.forward(messageId);
@@ -101,9 +127,12 @@ export class Workspace extends Component {
         } else if (key === "k") {
             ev.preventDefault();
             this.mailbox.selectPreviousMessage();
-        } else if (key === "enter") {
+        } else if (key === "o" || key === "enter") {
             ev.preventDefault();
             this.mailbox.openSelectedMessage();
+        } else if (key === "u") {
+            ev.preventDefault();
+            this._backToList();
         } else if (key === "x" && messageId) {
             ev.preventDefault();
             this.mailbox.toggleMessageRead(messageId);
@@ -116,11 +145,22 @@ export class Workspace extends Component {
     _handleGoShortcut(key) {
         this.state.goPending = false;
         const map = {
-            i: "inbox",
+            i: () => this.mailbox.selectFolderByType("inbox"),
+            a: () => this.mailbox.selectFolder("all"),
+            s: () => this.mailbox.setFilter("starred", !this.mailbox.filters.starred),
+            u: () => this.mailbox.setFilter("unread", !this.mailbox.filters.unread),
         };
-        const folderType = map[key];
-        if (folderType) {
-            this.mailbox.selectFolderByType(folderType);
+        const action = map[key];
+        if (action) {
+            action();
+        }
+    }
+
+    _backToList() {
+        this.mailbox.selectedMessageId = null;
+        const list = document.querySelector(".o-unified-email-list-items");
+        if (list) {
+            list.focus();
         }
     }
 
@@ -129,6 +169,52 @@ export class Workspace extends Component {
         if (input) {
             input.focus();
         }
+    }
+
+    closeShortcuts = () => {
+        this.state.showShortcuts = false;
+    };
+
+    onDialogClick = (ev) => {
+        ev.stopPropagation();
+    };
+
+    get shortcutGroups() {
+        return [
+            {
+                title: "Navigation",
+                items: [
+                    { keys: "J / K", label: "Next / previous message" },
+                    { keys: "Enter or O", label: "Open selected message" },
+                    { keys: "U", label: "Back to the list" },
+                    { keys: "G then I", label: "Go to Inbox" },
+                    { keys: "G then A", label: "Go to All Mail" },
+                    { keys: "/", label: "Search mail" },
+                ],
+            },
+            {
+                title: "Actions",
+                items: [
+                    { keys: "C or E", label: "Compose" },
+                    { keys: "R", label: "Reply" },
+                    { keys: "A", label: "Reply all" },
+                    { keys: "F", label: "Forward" },
+                    { keys: "S", label: "Star / unstar" },
+                    { keys: "!", label: "Mark important" },
+                    { keys: "X", label: "Mark read / unread" },
+                    { keys: "#", label: "Move to trash" },
+                ],
+            },
+            {
+                title: "View",
+                items: [
+                    { keys: "G then S", label: "Toggle starred filter" },
+                    { keys: "G then U", label: "Toggle unread filter" },
+                    { keys: "?", label: "Show this help" },
+                    { keys: "Esc", label: "Close dialog or deselect" },
+                ],
+            },
+        ];
     }
 }
 

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="unified_workspace.ContextMenu">
+        <div
+            class="o-unified-context-menu"
+            t-ref="menu"
+            t-att-style="menuStyle"
+            role="menu"
+            tabindex="-1">
+            <t t-foreach="props.items" t-as="item" t-key="item_index">
+                <div t-if="item.separator" class="o-unified-context-menu-separator" role="separator"/>
+                <button
+                    t-else=""
+                    type="button"
+                    role="menuitem"
+                    class="o-unified-context-menu-item"
+                    t-att-class="{ 'text-danger': item.danger }"
+                    t-on-click="(ev) => this.onItemClick(item, ev)">
+                    <i t-if="item.icon" t-att-class="item.icon" class="o-unified-context-menu-icon"/>
+                    <span t-else="" class="o-unified-context-menu-icon"/>
+                    <span class="o-unified-context-menu-label" t-esc="item.label"/>
+                    <span t-if="item.shortcut" class="o-unified-context-menu-shortcut" t-esc="item.shortcut"/>
+                </button>
+            </t>
+        </div>
+    </t>
+</templates>

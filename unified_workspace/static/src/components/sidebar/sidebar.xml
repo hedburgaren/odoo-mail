@@ -29,9 +29,8 @@
                         <i class="fa fa-inbox me-2"/>
                         Personal Inbox
                     </span>
-                    <span t-if="personalInboxFolder.message_count" class="badge rounded-pill bg-secondary">
-                        <t t-esc="personalInboxFolder.message_count"/>
-                    </span>
+                    <span t-if="personalInboxFolder.unread_count" class="badge rounded-pill bg-danger" t-esc="personalInboxFolder.unread_count"/>
+                    <span t-elif="personalInboxFolder.message_count" class="badge rounded-pill bg-secondary" t-esc="personalInboxFolder.message_count"/>
                 </div>
             </div>
 
@@ -45,6 +44,7 @@
                         <i class="fa fa-folder-open-o me-2"/>
                         <t t-esc="allFoldersItem.name"/>
                     </span>
+                    <span t-if="mailbox.totalUnreadCount" class="badge rounded-pill bg-danger" t-esc="mailbox.totalUnreadCount"/>
                 </div>
                 <t t-foreach="visibleFolders" t-as="folder" t-key="folder.id">
                     <div
@@ -55,9 +55,8 @@
                             <i t-att-class="getFolderIcon(folder.folder_type)" class="me-2"/>
                             <t t-esc="folder.name"/>
                         </span>
-                        <span t-if="folder.message_count" class="badge rounded-pill bg-secondary">
-                            <t t-esc="folder.message_count"/>
-                        </span>
+                        <span t-if="folder.unread_count" class="badge rounded-pill bg-danger" t-esc="folder.unread_count"/>
+                        <span t-elif="folder.message_count" class="badge rounded-pill bg-secondary" t-esc="folder.message_count"/>
                     </div>
                 </t>
             </div>
