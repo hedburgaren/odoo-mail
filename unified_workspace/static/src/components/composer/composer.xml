@@ -20,7 +20,7 @@
                 </div>
                 <div class="mb-2">
                     <label class="form-label">To</label>
-                    <EmailTags emails="state.to" placeholder="'recipient email'" onChange.bind="(emails) => state.to = emails"/>
+                    <EmailTags emails="state.to" placeholder="'recipient email'" onChange.bind="onRecipientsChange"/>
                 </div>
                 <div class="mb-2">
                     <button type="button" class="btn btn-link p-0" t-on-click="() => state.showCcBcc = !state.showCcBcc">

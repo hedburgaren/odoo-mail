@@ -51,9 +51,14 @@ class MailComposeMessage(models.TransientModel):
         )
         if not to_partners and not cc_emails:
             raise UserError(_("No recipient found."))
-        body = self._ensure_signature(self.body or "")
+        # Sista platshållarrenderingen sker här. Composern kan ha öppnats innan
+        # mottagaren fanns, och då ligger {{ partner.name }} kvar i texten.
+        # Inget {{ ... }} ur vitlistan får gå ut till kund, så det här passet
+        # är det som avgör, oavsett vad klienten hann rendera.
+        subject, body = self._render_personal_placeholders(to_partners)
+        body = self._ensure_signature(body)
         mail_values = {
-            "subject": self.subject or _("(No subject)"),
+            "subject": subject or _("(No subject)"),
             "body_html": body,
             "email_from": self.email_from or self.env.user.email_formatted,
             # Utan explicit reply_to satte Odoo catchall@<domän> som Reply-To.
@@ -68,6 +73,24 @@ class MailComposeMessage(models.TransientModel):
         }
         mail = self.env["mail.mail"].sudo().create(mail_values)
         mail.send(raise_exception=True)
+
+    def _render_personal_placeholders(self, to_partners):
+        """Render any template placeholders left in subject and body.
+
+        Rendered against the first To recipient. Utan mottagare blir
+        partner-fälten tomma i stället för att stå kvar som platshållare:
+        efter sändning finns inget tillfälle kvar att fylla i dem.
+        """
+        self.ensure_one()
+        template_model = self.env["mail.personal.template"]
+        recipient = to_partners[:1] if to_partners else self.partner_ids[:1]
+        subject = template_model._render_placeholders(
+            self.subject or "", recipient, escape=False, final=True
+        )
+        body = template_model._render_placeholders(
+            self.body or "", recipient, escape=True, final=True
+        )
+        return subject, body
 
     def _ensure_signature(self, body):
         """Insert the sender's signature above the quoted part, once.
@@ -118,9 +141,12 @@ class MailComposeMessage(models.TransientModel):
         try:
             record = self.env[self.log_to_model].browse(self.log_to_res_id)
             if record.exists() and hasattr(record, "message_post"):
+                # Samma rendering som i sändningen: chatter-kopian ska visa
+                # det mottagaren fick, inte platshållarna.
+                subject, body = self._render_personal_placeholders(self.partner_ids)
                 record.message_post(
-                    subject=self.subject,
-                    body=html_sanitize(self._ensure_signature(self.body or "")),
+                    subject=subject,
+                    body=html_sanitize(self._ensure_signature(body)),
                     partner_ids=self.partner_ids.ids,
                     attachment_ids=self.attachment_ids.ids,
                 )

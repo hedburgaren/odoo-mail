@@ -99,10 +99,64 @@ export class Composer extends Component {
             { partner_id: partnerId || false }
         );
         this.state.subject = data.subject || this.state.subject;
-        this.state.body = data.body || this.state.body;
-        if (this.editor) {
-            this.editor.setContent(this.state.body);
+        this.state.body = this._mergeTemplateBody(data.body);
+        this._setEditorContent(this.state.body);
+    }
+
+    _setEditorContent(html) {
+        // html_editor (Odoo 18) har ingen setContent. Så här gör fältet
+        // själv: skriv editable och lägg ett historiksteg, annars kan
+        // användaren inte ångra och ändringen syns inte i editorn.
+        if (!this.editor || !this.editor.editable) {
+            return;
         }
+        this.editor.editable.innerHTML = html || "";
+        this.editor.shared?.history?.addStep();
+    }
+
+    _mergeTemplateBody(templateBody) {
+        const current = this.state.body || "";
+        if (!templateBody) {
+            return current;
+        }
+        // I ett svar ligger citatet redan i bodyn. Mallen läggs ovanför
+        // citatet i stället för att ersätta hela texten, annars försvinner
+        // det citerade så fort användaren byter mall.
+        for (const marker of ['<p class="uw_quote_header"', '<div class="uw_quote"']) {
+            const idx = current.indexOf(marker);
+            if (idx >= 0) {
+                return templateBody + current.slice(idx);
+            }
+        }
+        return templateBody;
+    }
+
+    async onRecipientsChange(emails) {
+        this.state.to = emails;
+        await this._renderPendingPlaceholders();
+    }
+
+    async _renderPendingPlaceholders() {
+        // Mallen kan ha applicerats innan mottagaren fanns, och då står
+        // {{ partner.* }} kvar i texten. Här fylls bara de platshållare som
+        // är kvar i; allt användaren själv skrivit lämnas orört.
+        const body = this.getBody();
+        if (!(this.state.subject || "").includes("{{") && !body.includes("{{")) {
+            return;
+        }
+        const partnerId = await this._resolveRecipientPartnerId();
+        if (!partnerId) {
+            return;
+        }
+        const data = await this.orm.call(
+            "mail.personal.template",
+            "render_for_partner",
+            [],
+            { subject: this.state.subject || "", body: body, partner_id: partnerId }
+        );
+        this.state.subject = data.subject;
+        this.state.body = data.body;
+        this._setEditorContent(this.state.body);
     }
 
     async _resolveRecipientPartnerId() {
@@ -112,9 +166,12 @@ export class Composer extends Component {
         if (!email) {
             return false;
         }
+        // email_normalized, inte =ilike: i ilike är _ och % jokertecken, så
+        // anna_b@firma.se matchade även annaxb@firma.se och fel kontakts
+        // uppgifter hamnade i mejlet.
         const partners = await this.orm.searchRead(
             "res.partner",
-            [["email", "=ilike", email]],
+            [["email_normalized", "=", email]],
             ["id"],
             { limit: 1 }
         );
@@ -367,7 +424,7 @@ export class Composer extends Component {
         for (const email of uniqueEmails) {
             const partners = await this.orm.searchRead(
                 "res.partner",
-                [["email", "=ilike", email]],
+                [["email_normalized", "=", email]],
                 ["id"]
             );
             if (partners.length) {

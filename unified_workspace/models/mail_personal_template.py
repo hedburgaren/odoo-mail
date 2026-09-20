@@ -4,26 +4,38 @@
 import html
 import re
 
-from odoo import api, fields, models, _
+from odoo import api, fields, models
+from odoo.tools.translate import LazyTranslate
+
+_lt = LazyTranslate(__name__)
 
 # Placeholders are written as {{ namespace.field }} and resolved against a
 # whitelist. Nothing outside the whitelist is touched, so a template can never
 # reach a field or a method it was not meant to.
-PLACEHOLDER_RE = re.compile(r"\{\{\s*([A-Za-z_][A-Za-z0-9_.]*)\s*\}\}")
+#
+# The separator class covers ordinary whitespace plus the two shapes an HTML
+# editor can leave inside the braces on its own: a literal &nbsp; entity and
+# U+00A0. Without them a placeholder the user never touched would go out raw.
+_SEP = r"(?:\s|&nbsp;|\u00a0)*"
+PLACEHOLDER_RE = re.compile(
+    r"\{\{" + _SEP + r"([A-Za-z_][A-Za-z0-9_.]*)" + _SEP + r"\}\}"
+)
 
 # The dynamic fields a template may use. Keys are the placeholder names, values
-# are the human labels shown in the template form.
+# are the human labels shown in the template form. LazyTranslate: the module is
+# imported once, without a language, so an eager _() would freeze the labels in
+# English for every user.
 PLACEHOLDER_FIELDS = {
-    "partner.name": _("Recipient name"),
-    "partner.company_name": _("Recipient company"),
-    "partner.email": _("Recipient email"),
-    "partner.phone": _("Recipient phone"),
-    "partner.city": _("Recipient city"),
-    "user.name": _("Your name"),
-    "user.email": _("Your email"),
-    "user.phone": _("Your phone"),
-    "user.company_name": _("Your company"),
-    "date": _("Today's date"),
+    "partner.name": _lt("Recipient name"),
+    "partner.company_name": _lt("Recipient company"),
+    "partner.email": _lt("Recipient email"),
+    "partner.phone": _lt("Recipient phone"),
+    "partner.city": _lt("Recipient city"),
+    "user.name": _lt("Your name"),
+    "user.email": _lt("Your email"),
+    "user.phone": _lt("Your phone"),
+    "user.company_name": _lt("Your company"),
+    "date": _lt("Today's date"),
 }
 
 # Aliases resolved to the same value as their target, so "recipient" reads
@@ -76,49 +88,68 @@ class MailPersonalTemplate(models.Model):
         for template in self:
             template.placeholder_help = "\n".join(
                 "{{ %s }}: %s" % (key, label)
-                for key, label in PLACEHOLDER_FIELDS.items()
+                for key, label in self.get_placeholder_fields().items()
             )
 
     @api.model
     def get_placeholder_fields(self):
-        """Return the placeholder names and labels for the UI."""
-        return dict(PLACEHOLDER_FIELDS)
+        """Return the placeholder names and labels for the UI.
 
-    def _placeholder_values(self, partner=None):
+        The labels are lazily translated, so they are resolved here, in the
+        caller's language, and not at import time.
+        """
+        return {key: str(label) for key, label in PLACEHOLDER_FIELDS.items()}
+
+    @api.model
+    def _placeholder_values(self, partner=None, final=False):
         """Build the placeholder value map for the current user and partner.
+
+        Without a recipient the ``partner.*`` keys are left out of the map
+        entirely. The renderer leaves anything it does not know untouched, so
+        the placeholder survives in the text and can be filled in once the
+        recipient is known. Rendering them to empty strings instead would
+        delete them the moment the composer opens.
+
+        ``final`` is the send-time pass: there is nothing left to fill in
+        afterwards, so the ``partner.*`` keys are always in the map and an
+        unresolved one becomes an empty string rather than going out raw.
 
         Returns plain strings. The caller decides whether they need HTML
         escaping (body) or not (subject).
         """
-        self.ensure_one()
         user = self.env.user
-        partner = partner or self.env["res.partner"]
         today = fields.Date.context_today(self)
-        return {
-            "partner.name": partner.name or "",
-            "partner.company_name": partner.company_name or "",
-            "partner.email": partner.email or "",
-            "partner.phone": partner.phone or "",
-            "partner.city": partner.city or "",
+        values = {
             "user.name": user.name or "",
             "user.email": user.email or "",
             "user.phone": user.phone or "",
             "user.company_name": user.company_id.name or "",
             "date": today.strftime("%Y-%m-%d"),
         }
+        if partner or final:
+            values.update({
+                "partner.name": partner.name or "",
+                "partner.company_name": partner.company_name or "",
+                "partner.email": partner.email or "",
+                "partner.phone": partner.phone or "",
+                "partner.city": partner.city or "",
+            })
+        return values
 
-    def _render_placeholders(self, text, partner=None, escape=True):
+    @api.model
+    def _render_placeholders(self, text, partner=None, escape=True, final=False):
         """Replace whitelisted {{ placeholders }} in ``text``.
 
         Unknown placeholders are left as they are, so a half-finished template
-        stays visible instead of silently losing text. When ``escape`` is set,
+        stays visible instead of silently losing text. The same goes for
+        ``partner.*`` when no recipient is known yet, unless ``final`` is set
+        (the send-time pass). When ``escape`` is set,
         the substituted values are HTML-escaped so a partner name containing
         markup cannot break the body.
         """
-        self.ensure_one()
         if not text:
             return text or ""
-        values = self._placeholder_values(partner)
+        values = self._placeholder_values(partner, final=final)
 
         def _replace(match):
             key = match.group(1)
@@ -128,7 +159,7 @@ class MailPersonalTemplate(models.Model):
             value = values[key]
             return html.escape(value) if escape else value
 
-        return PLACEHOLDER_RE.sub(_replace, text)
+        return PLACEHOLDER_RE.sub(_replace, str(text))
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -153,12 +184,38 @@ class MailPersonalTemplate(models.Model):
         """Return the template data for the composer, placeholders rendered.
 
         ``partner_id`` is the recipient the placeholders resolve against. It is
-        optional: without it the partner placeholders render as empty strings
-        and the user/user/date placeholders still resolve.
+        optional: without it the ``partner.*`` placeholders are left in the
+        text for later, while user and date resolve straight away.
         """
         self.ensure_one()
-        partner = self.env["res.partner"].browse(partner_id) if partner_id else None
+        # exists(): a stale id from the browser must not raise MissingError,
+        # the template is simply rendered without recipient data.
+        partner = (
+            self.env["res.partner"].browse(partner_id).exists()
+            if partner_id
+            else self.env["res.partner"]
+        )
         return {
             "subject": self._render_placeholders(self.subject, partner, escape=False),
             "body": self._render_placeholders(self.body or "", partner, escape=True),
+        }
+
+    @api.model
+    def render_for_partner(self, subject=None, body=None, partner_id=None):
+        """Render the placeholders still left in composer text.
+
+        The composer calls this when the recipient changes: the text at that
+        point is whatever the user has written or edited, so only the
+        placeholders that are still there get filled in and nothing the user
+        typed is replaced. Partner data is read as the current user, so the
+        record rules on res.partner apply.
+        """
+        partner = (
+            self.env["res.partner"].browse(partner_id).exists()
+            if partner_id
+            else self.env["res.partner"]
+        )
+        return {
+            "subject": self._render_placeholders(subject or "", partner, escape=False),
+            "body": self._render_placeholders(body or "", partner, escape=True),
         }

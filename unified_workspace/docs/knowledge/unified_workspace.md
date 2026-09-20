@@ -98,8 +98,18 @@ template form shows them as help text.
 
 `action_use_template(partner_id=None)` renders the placeholders against the
 given recipient and returns the subject and body for the composer. Without a
-partner the partner placeholders render as empty strings while user and date
-placeholders still resolve.
+partner the `partner.*` placeholders are left in the text, exactly like an
+unknown placeholder: the composer applies the default template when it opens,
+before any recipient exists, and rendering them to empty strings there would
+delete them before there was anything to fill in. `render_for_partner()` fills
+in what is left when the recipient is entered afterwards, and it only touches
+the placeholders, never text the user wrote.
+
+Sending is the last pass: `mail.compose.message._render_personal_placeholders()`
+renders subject and body once more against the first To recipient, with
+`final=True` so an unresolved `partner.*` becomes an empty string. No
+`{{ ... }}` from the whitelist can reach the customer, whatever the browser
+managed to render, and scheduled sends go through the same composer.
 
 ### `res.users`
 
