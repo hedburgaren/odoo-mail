@@ -254,15 +254,34 @@ class MailPersonalMailbox(models.Model):
         if vals.get("body"):
             vals["body"] = html_sanitize(vals["body"])
         result = super().write(vals)
-        if vals.get("attachment_ids") and not self.calendar_event_id:
-            try:
-                self.action_parse_calendar_invitation()
-            except Exception:
-                _logger.exception(
-                    "Calendar invitation parsing failed for personal email %s",
-                    self.id,
-                )
+        if vals.get("attachment_ids"):
+            # En write kan träffa flera poster: ensure_one() i parsern får
+            # inte fälla hela skrivningen, och self.id går inte att läsa på
+            # ett multirecordset (inte ens i except-blocket).
+            for record in self:
+                if record.calendar_event_id:
+                    continue
+                record._try_parse_calendar_invitation()
         return result
+
+    def _try_parse_calendar_invitation(self):
+        """Parse en eventuell inbjudan utan att kunna fälla anroparen.
+
+        Savepoint runt anropet: ett fel halvvägs får inte lämna en trasig
+        transaktion efter sig. Utan savepoint blir hela transaktionen
+        avbruten av ett databasfel och mailet går förlorat ändå, vilket är
+        precis det som ska förhindras.
+        """
+        self.ensure_one()
+        try:
+            with self.env.cr.savepoint():
+                return self.action_parse_calendar_invitation()
+        except Exception:
+            _logger.exception(
+                "Calendar invitation parsing failed for personal email %s",
+                self.id,
+            )
+        return False
 
     def action_mark_read(self):
         return self.write({"state": "read"})
@@ -298,12 +317,16 @@ class MailPersonalMailbox(models.Model):
                 "view_mode": "form",
                 "target": "current",
             }
+        # crm.utm_source_email finns inte i alla Odoo 18-databaser (ren CE utan
+        # utm-data). env.ref returnerar None nar referensen saknas, och .id pa
+        # None kraschade skapandet av leadet.
+        source = self.env.ref("crm.utm_source_email", raise_if_not_found=False)
         lead = self.env["crm.lead"].create({
             "name": self.name,
             "partner_id": self.partner_id.id,
             "description": self.body,
             "type": "lead",
-            "source_id": self.env.ref("crm.utm_source_email", raise_if_not_found=False).id,
+            "source_id": source.id if source else False,
         })
         self.crm_lead_id = lead
         return {
@@ -383,9 +406,14 @@ class MailPersonalMailbox(models.Model):
     # ------------------------------------------------------------------
 
     def _find_ics_attachments(self):
-        """Return the .ics attachments on this message."""
+        """Return the .ics attachments on this message.
+
+        sudo() på bilagorna: de skapas av mailhämtningen, och ir.attachment
+        har egna record rules som kan neka brevlådeägaren läsning. Det är
+        ägarens eget mail, och vi läser bara.
+        """
         self.ensure_one()
-        return self.attachment_ids.filtered(
+        return self.sudo().attachment_ids.filtered(
             lambda a: a.mimetype == "text/calendar" or a.name.lower().endswith(".ics")
         )
 
@@ -417,8 +445,8 @@ class MailPersonalMailbox(models.Model):
             dtstart_prop = getattr(vevent, "dtstart", None)
             dtstart = dtstart_prop.value if dtstart_prop else None
             # En inbjudan utan DTSTART kan inte placeras i kalendern. Hoppa
-            # over den i stallet for att kasta: metoden kor aven vid
-            # inkommande mail-routing, och ett undantag har slukar hela mailet.
+            # över den i stället för att kasta: metoden körs även vid
+            # inkommande mail-routing, och ett undantag här slukar hela mailet.
             if dtstart is None:
                 _logger.warning(
                     "Skipping VEVENT without DTSTART in .ics attachment %s",
@@ -442,14 +470,14 @@ class MailPersonalMailbox(models.Model):
                 if isinstance(dtstart, datetime):
                     allday = False
                     start = self._ics_datetime_to_utc(dtstart)
-                    # Ett datum som DTEND pa ett tidsatt DTSTART ar trasigt;
-                    # tolka det som samma klockslag sa eventet anda hamnar ratt.
+                    # Ett datum som DTEND på ett tidsatt DTSTART är trasigt:
+                    # tolka det som samma klockslag så eventet ändå hamnar rätt.
                     if dtend and not isinstance(dtend, datetime) and isinstance(dtend, date):
                         dtend = datetime.combine(dtend, start.time())
                     stop = self._ics_datetime_to_utc(dtend) if dtend else None
-                    # Saknat, lika eller omvant DTEND far Odoo att avvisa
-                    # eventet. Fall tillbaka pa en timme. (Den gamla
-                    # replace(hour + 1) kastade ValueError for 23:xx.)
+                    # Saknat, lika eller omvänt DTEND får Odoo att avvisa
+                    # eventet. Fall tillbaka på en timme. (Den gamla
+                    # replace(hour + 1) kastade ValueError för 23:xx.)
                     if not stop or stop <= start:
                         stop = start + timedelta(hours=1)
                 else:
@@ -490,6 +518,18 @@ class MailPersonalMailbox(models.Model):
             }
         return None
 
+    @api.model
+    def _calendar_sync_context(self):
+        """Context for every calendar.event skrivning som kommer av ett .ics.
+
+        Odoo mailar ut "Invitation to ..." till samtliga deltagare när ett
+        framtida event skapas, och "changedate" när starttiden ändras. En
+        inbjudan vi tagit emot är redan utskickad av arrangören: skickar vi
+        igen får arrangören en inbjudan till sitt eget möte, avsänd från
+        brevlådeägaren, och övriga gäster en dubblett.
+        """
+        return {"no_mail_to_attendees": True, "dont_notify": True}
+
     def action_parse_calendar_invitation(self):
         """Find the first .ics attachment and create or update a calendar.event."""
         self.ensure_one()
@@ -501,57 +541,81 @@ class MailPersonalMailbox(models.Model):
         if not event_values:
             return False
 
-        CalendarEvent = self.env["calendar.event"]
-        Attendee = self.env["calendar.attendee"]
+        CalendarEvent = self.env["calendar.event"].with_context(
+            **self._calendar_sync_context()
+        )
         Partner = self.env["res.partner"]
 
-        existing = CalendarEvent
-        if event_values["uid"]:
+        # Den här posten kan redan ha ett event (write-kroken parsar när
+        # attachment_ids sätts). Uppdatera då det i stället för att skapa ett
+        # andra event för samma inbjudan.
+        existing = self.calendar_event_id
+        if not existing and event_values["uid"]:
             existing = self.env["mail.personal.mailbox"].search([
                 ("calendar_event_uid", "=", event_values["uid"]),
                 ("calendar_event_id", "!=", False),
                 ("id", "!=", self.id),
             ], limit=1, order="date DESC").calendar_event_id
+        existing = existing.with_context(**self._calendar_sync_context())
 
-        # Build partner/attendee lists.
+        # Deltagare: bara kontakter som redan finns. Ett inkommande mail är
+        # ingen anledning att skapa res.partner, dels för att skräppost med
+        # kalenderbilaga annars fyller kontaktregistret, dels för att en
+        # vanlig användare saknar rätt att skapa kontakter och då skulle
+        # tappa hela kalenderhändelsen på ett AccessError.
         attendee_emails = list(dict.fromkeys(
             [event_values["organizer_email"]] + event_values["attendee_emails"]
         ))
         partner_by_email = {}
+        unknown_emails = []
         for email_addr in attendee_emails:
             if not email_addr:
                 continue
             partner = Partner.search([("email", "=ilike", email_addr)], limit=1)
-            if not partner:
-                partner = Partner.create({"name": email_addr, "email": email_addr})
-            partner_by_email[email_addr] = partner
+            if partner:
+                partner_by_email[email_addr] = partner
+            else:
+                unknown_emails.append(email_addr)
 
         organizer_partner = partner_by_email.get(event_values["organizer_email"])
-        attendee_commands = []
-        partners = Partner
         owner_partner = self.user_id.partner_id
-        for email_addr, partner in partner_by_email.items():
+        partners = Partner.browse()
+        for partner in partner_by_email.values():
             partners |= partner
-            state = "needsAction"
-            if partner == owner_partner:
-                state = self.calendar_rsvp_state or "needsAction"
-            attendee_commands.append((0, 0, {
-                "partner_id": partner.id,
-                "state": state,
-            }))
+        # Mailet ligger i ägarens inkorg, så eventet hör hemma i ägarens
+        # kalender även när inbjudan adresserat ett alias.
+        if owner_partner:
+            partners |= owner_partner
+
+        description = event_values["description"]
+        if unknown_emails:
+            # Adresserna får inte tappas bort bara för att vi inte skapar
+            # kontakter av dem.
+            description = "%s\n\n%s %s" % (
+                description,
+                _("Other participants:"),
+                ", ".join(unknown_emails),
+            )
 
         values = {
             "name": event_values["name"],
-            "description": event_values["description"],
+            "description": description,
             "location": event_values["location"],
             "start": event_values["start"],
             "stop": event_values["stop"],
             "allday": event_values["allday"],
+            # attendee_ids utelämnas med flit: Odoo härleder dem ur
+            # partner_ids i både create och write, och egna (0, 0)-kommandon
+            # skulle ge dubbletter vid varje uppdatering.
             "partner_ids": [(6, 0, partners.ids)],
-            "attendee_ids": attendee_commands,
         }
-        if organizer_partner:
-            values["partner_id"] = organizer_partner.id
+        # calendar.event.partner_id är related till user_id och går inte att
+        # sätta direkt. En extern arrangör kan inte äga ett Odoo-event; är
+        # arrangören en intern användare sätter vi user_id, annars får
+        # brevlådeägaren stå kvar som ägare.
+        organizer_user = organizer_partner.sudo().user_ids[:1] if organizer_partner else False
+        if organizer_user:
+            values["user_id"] = organizer_user.id
 
         if existing:
             existing.write(values)
@@ -563,6 +627,8 @@ class MailPersonalMailbox(models.Model):
             "calendar_event_id": event.id,
             "calendar_event_uid": event_values["uid"],
         })
+        if self.calendar_rsvp_state:
+            self._set_attendee_state(self.calendar_rsvp_state)
         return event.id
 
     def _set_attendee_state(self, state):
@@ -575,7 +641,9 @@ class MailPersonalMailbox(models.Model):
             lambda a: a.partner_id == owner_partner
         )
         if not attendee:
-            self.env["calendar.attendee"].create({
+            self.env["calendar.attendee"].with_context(
+                **self._calendar_sync_context()
+            ).create({
                 "event_id": self.calendar_event_id.id,
                 "partner_id": owner_partner.id,
                 "state": state,

@@ -35,7 +35,24 @@ Calendar methods:
   equal or inverted `DTEND` falls back to one hour, so a malformed invite can
   never raise and swallow the email it arrived with.
 - `action_parse_calendar_invitation()` creates or updates `calendar.event`
-  from the first `.ics` attachment.
+  from the first `.ics` attachment. Rules that matter:
+  - Every write goes through `_calendar_sync_context()`
+    (`no_mail_to_attendees`, `dont_notify`). Without it Odoo mails
+    "Invitation to ..." to every attendee of a future event, from the mailbox
+    owner, so the organiser gets an invitation to their own meeting and the
+    other guests get a duplicate.
+  - Only existing contacts become attendees. An incoming email is no reason to
+    create `res.partner` records: spam with a calendar attachment would fill
+    the contact register, and a user without Contact Creation would lose the
+    event to an `AccessError`. Unknown addresses are appended to the event
+    description instead. The mailbox owner is always an attendee.
+  - `partner_id` on `calendar.event` is related to `user_id` and cannot be
+    written. An external organiser cannot own an Odoo event, so `user_id` is
+    only set when the organiser is an internal user.
+  - Parsing is triggered once, from the `write()` hook when `attachment_ids`
+    is set, inside a savepoint (`_try_parse_calendar_invitation()`). Calling
+    the action again on a message that already has an event updates that
+    event rather than creating a second one.
 - `action_accept_event()` / `action_tentative_event()` /
   `action_decline_event()` update the mailbox owner's attendee state and
   return `True` so the OWL frontend can refresh the reading pane badge.
@@ -45,7 +62,9 @@ Thread, draft, activity and timer methods:
 - `action_get_thread()` returns the root message and all descendants in
   chronological order for the reading pane thread panel.
 - `save_draft()` creates or updates a `mail.personal.mailbox` record in the
-  user's Drafts folder from composer data.
+  user's Inbox with `state = "draft"` from composer data. There is no separate
+  Drafts folder; drafts are found through the Drafts quick filter and reopened
+  via the composer's `draftId` prop.
 - `action_get_reply_body()` returns the standard quoted reply body for a
   message.
 - `action_log_activity()` opens the standard `mail.activity.schedule` wizard
@@ -96,12 +115,17 @@ and `.ics` attachments are parsed automatically.
 
 ### `mail.compose.message`
 
-Adds `composition_mode = "personal_email"` and saves a copy of sent messages
-in the user's Sent folder with signatures applied.
+Adds `composition_mode = "personal_email"` and sends personal mail through
+`mail.mail` with To/CC/BCC, attachments and the sender's signature applied at
+send time, server-side, above the quoted part.
 
-The composer calls the public `action_send_mail` method and passes To/CC/BCC
-partners and attachments so the Sent copy preserves the full recipient list
-and attachments.
+`_save_sent_copy()` is post-send bookkeeping only. It does NOT create a copy in
+the Odoo inbox: outgoing personal mail is kept by Gmail's own Sent folder, and
+mixing incoming and outgoing in one view was confusing (Chrille 2026-09-07).
+What remains is the state transition on the original message
+(`replied`/`forwarded`) and the optional log-to-record on a linked
+`crm.lead`/`project.task`/`res.partner`. The composer calls the public
+`action_send_mail` method and passes To/CC/BCC partners and attachments.
 
 ## Security
 

@@ -3,8 +3,10 @@
 
 import base64
 from datetime import timedelta
+from unittest.mock import patch
 
 from odoo import fields
+from odoo.addons.base.models.ir_mail_server import IrMailServer
 from odoo.tests.common import TransactionCase
 from odoo.exceptions import UserError, ValidationError
 
@@ -26,6 +28,10 @@ ATTENDEE:mailto:attendee2@example.com
 END:VEVENT
 END:VCALENDAR
 """
+
+ICS_INVITATION_RESCHEDULED = ICS_INVITATION.replace(
+    "SUMMARY:Year End Review", "SUMMARY:Year End Review (rescheduled)"
+)
 
 
 class TestMailPersonalMailbox(TransactionCase):
@@ -198,7 +204,211 @@ class TestMailPersonalMailbox(TransactionCase):
             fields.Datetime.to_datetime("2026-01-01 00:30:00"),
         )
 
-    def test_save_sent_copy_with_attachment(self):
+    def _make_invitation_message(self, ics, user=None, subject="Meeting invite"):
+        user = user or self.user
+        attachment = self.env["ir.attachment"].create({
+            "name": "invite.ics",
+            "mimetype": "text/calendar",
+            "datas": base64.b64encode(ics.encode("utf-8")),
+        })
+        folder = self.env["mail.personal.folder"]._get_system_folder(user, "inbox")
+        return self.env["mail.personal.mailbox"].with_user(user).create({
+            "user_id": user.id,
+            "folder_id": folder.id,
+            "name": subject,
+            "email_from": "organizer@example.com",
+            "attachment_ids": [(6, 0, attachment.ids)],
+        })
+
+    def test_parse_future_invitation_sends_no_mail(self):
+        """En mottagen inbjudan får aldrig mailas ut igen från oss.
+
+        Odoo skickar "Invitation to ..." till alla deltagare när ett framtida
+        event skapas. Arrangören skulle då få en inbjudan till sitt eget möte
+        och övriga gäster en dubblett, avsänd från brevlådeägaren.
+        """
+        self.env["res.partner"].create([
+            {"name": "External Organizer", "email": "organizer@example.com"},
+            {"name": "External Guest", "email": "attendee2@example.com"},
+        ])
+        ics = (
+            ICS_INVITATION.replace("DTSTART:20251231T090000Z", "DTSTART:20301231T090000Z")
+            .replace("DTEND:20251231T100000Z", "DTEND:20301231T100000Z")
+        )
+        message = self._make_invitation_message(ics, subject="Future invite")
+
+        sent = []
+        with patch.object(IrMailServer, "connect", lambda *args, **kwargs: None), \
+                patch.object(
+                    IrMailServer, "send_email",
+                    lambda self, message, *args, **kwargs: sent.append(message),
+                ):
+            message.action_parse_calendar_invitation()
+            event = message.calendar_event_id
+            self.assertTrue(event)
+            self.assertGreater(event.start, fields.Datetime.now())
+            # Även omplaneringen ska vara tyst.
+            message.action_parse_calendar_invitation()
+        self.assertFalse(sent, "Inbjudan mailades ut till deltagarna")
+
+    def test_parse_invitation_as_regular_user_without_contact_rights(self):
+        """En vanlig intern användare ska få sin kalenderhändelse.
+
+        Tidigare skapades res.partner för varje okänd adress i filen, vilket
+        gav AccessError för alla utan Contact Creation och lämnade mailet utan
+        event.
+        """
+        regular_user = self.env["res.users"].create({
+            "name": "Regular User",
+            "login": "regular_mailbox_user",
+            "email": "regular_mailbox_user@example.com",
+            "groups_id": [(6, 0, [self.env.ref("base.group_user").id])],
+        })
+        partners_before = self.env["res.partner"].search_count([])
+        message = self._make_invitation_message(
+            ICS_INVITATION, user=regular_user, subject="Invite for regular user",
+        )
+        message.action_parse_calendar_invitation()
+        self.assertTrue(message.calendar_event_id)
+        self.assertIn(regular_user.partner_id, message.calendar_event_id.partner_ids)
+        self.assertEqual(
+            self.env["res.partner"].search_count([]), partners_before,
+            "Okända adresser i en .ics ska inte skapa kontakter",
+        )
+        self.assertIn(
+            "attendee2@example.com", message.calendar_event_id.description or "",
+        )
+
+    def test_parse_invitation_runs_once_per_message(self):
+        """Write-kroken parsar; ett extra anrop får inte ge ett andra event."""
+        attachment = self.env["ir.attachment"].create({
+            "name": "invite.ics",
+            "mimetype": "text/calendar",
+            "datas": base64.b64encode(ICS_INVITATION.encode("utf-8")),
+        })
+        message = self.env["mail.personal.mailbox"].create({
+            "user_id": self.user.id,
+            "folder_id": self.folder.id,
+            "name": "Meeting invite",
+            "email_from": "organizer@example.com",
+        })
+        message.attachment_ids = [(6, 0, attachment.ids)]
+        event = message.calendar_event_id
+        self.assertTrue(event, "Write-kroken ska ha parsat inbjudan")
+        message.action_parse_calendar_invitation()
+        self.assertEqual(message.calendar_event_id, event)
+        self.assertEqual(
+            self.env["calendar.event"].search_count([("name", "=", "Year End Review")]), 1,
+        )
+
+    def test_write_attachments_on_multiple_messages(self):
+        """write() på flera poster får inte fällas av kalenderparsningen."""
+        attachment = self.env["ir.attachment"].create({
+            "name": "notes.txt",
+            "mimetype": "text/plain",
+            "datas": base64.b64encode(b"just a note"),
+        })
+        messages = self.env["mail.personal.mailbox"].create([
+            {
+                "user_id": self.user.id,
+                "folder_id": self.folder.id,
+                "name": "First",
+            },
+            {
+                "user_id": self.user.id,
+                "folder_id": self.folder.id,
+                "name": "Second",
+            },
+        ])
+        messages.write({"attachment_ids": [(6, 0, attachment.ids)]})
+        self.assertEqual(len(messages.mapped("attachment_ids")), 1)
+
+    def test_parse_invitation_without_attachment_returns_false(self):
+        message = self.env["mail.personal.mailbox"].create({
+            "user_id": self.user.id,
+            "folder_id": self.folder.id,
+            "name": "No invite",
+            "email_from": "organizer@example.com",
+        })
+        self.assertFalse(message.action_parse_calendar_invitation())
+        self.assertFalse(message.calendar_event_id)
+
+    def test_parse_invitation_ignores_non_calendar_attachment(self):
+        attachment = self.env["ir.attachment"].create({
+            "name": "notes.txt",
+            "mimetype": "text/plain",
+            "datas": base64.b64encode(b"just a note"),
+        })
+        message = self.env["mail.personal.mailbox"].create({
+            "user_id": self.user.id,
+            "folder_id": self.folder.id,
+            "name": "Note, not invite",
+            "email_from": "organizer@example.com",
+            "attachment_ids": [(6, 0, attachment.ids)],
+        })
+        self.assertFalse(message.action_parse_calendar_invitation())
+        self.assertFalse(message.calendar_event_id)
+
+    def test_parse_malformed_ics_returns_false(self):
+        attachment = self.env["ir.attachment"].create({
+            "name": "broken.ics",
+            "mimetype": "text/calendar",
+            "datas": base64.b64encode(b"this is not a calendar at all"),
+        })
+        message = self.env["mail.personal.mailbox"].create({
+            "user_id": self.user.id,
+            "folder_id": self.folder.id,
+            "name": "Malformed invite",
+            "email_from": "organizer@example.com",
+            "attachment_ids": [(6, 0, attachment.ids)],
+        })
+        # Får inte kasta: ett trasigt .ics får aldrig sluka mailet.
+        self.assertFalse(message.action_parse_calendar_invitation())
+        self.assertFalse(message.calendar_event_id)
+
+    def test_parse_invitation_updates_existing_event_by_uid(self):
+        first_attachment = self.env["ir.attachment"].create({
+            "name": "invite.ics",
+            "mimetype": "text/calendar",
+            "datas": base64.b64encode(ICS_INVITATION.encode("utf-8")),
+        })
+        first = self.env["mail.personal.mailbox"].create({
+            "user_id": self.user.id,
+            "folder_id": self.folder.id,
+            "name": "Meeting invite",
+            "email_from": "organizer@example.com",
+            "attachment_ids": [(6, 0, first_attachment.ids)],
+        })
+        first.action_parse_calendar_invitation()
+        event = first.calendar_event_id
+        self.assertTrue(event)
+
+        updated_attachment = self.env["ir.attachment"].create({
+            "name": "invite.ics",
+            "mimetype": "text/calendar",
+            "datas": base64.b64encode(ICS_INVITATION_RESCHEDULED.encode("utf-8")),
+        })
+        second = self.env["mail.personal.mailbox"].create({
+            "user_id": self.user.id,
+            "folder_id": self.folder.id,
+            "name": "Meeting invite updated",
+            "email_from": "organizer@example.com",
+            "attachment_ids": [(6, 0, updated_attachment.ids)],
+        })
+        second.action_parse_calendar_invitation()
+        # Samma UID ska uppdatera samma event, inte skapa ett nytt.
+        self.assertEqual(second.calendar_event_id, event)
+        self.assertEqual(event.name, "Year End Review (rescheduled)")
+        self.assertEqual(
+            self.env["calendar.event"].search_count([
+                ("name", "=", "Year End Review (rescheduled)"),
+            ]),
+            1,
+        )
+
+    def test_sent_mail_creates_no_inbox_copy(self):
+        # Beslut 2026-09-07: ingen kopia i Odoo-inkorgen. Utgaende mail ligger
+        # kvar i Gmails Sent; Odoo behaller bara state och loggning.
         partner = self.env["res.partner"].create({
             "name": "Recipient",
             "email": "recipient@example.com",
@@ -219,14 +429,13 @@ class TestMailPersonalMailbox(TransactionCase):
             "email_cc": "cc@example.com",
             "attachment_ids": [(6, 0, attachment.ids)],
         })
-        mailbox_message = composer._save_sent_copy()
-        self.assertTrue(mailbox_message)
-        self.assertEqual(mailbox_message.folder_id.folder_type, "inbox")
-        self.assertEqual(mailbox_message.state, "read")
-        self.assertIn("recipient@example.com", mailbox_message.email_to)
-        self.assertIn("cc@example.com", mailbox_message.email_cc)
-        self.assertEqual(len(mailbox_message.attachment_ids), 1)
-        self.assertEqual(mailbox_message.attachment_ids.name, "test.txt")
+        result = composer._save_sent_copy()
+        self.assertFalse(result)
+        copy = self.env["mail.personal.mailbox"].search([
+            ("user_id", "=", self.env.user.id),
+            ("name", "=", "Sent subject"),
+        ])
+        self.assertFalse(copy)
 
     def test_personal_template(self):
         template = self.env["mail.personal.template"].create({
@@ -277,17 +486,66 @@ class TestMailPersonalMailbox(TransactionCase):
         # Unknown placeholders survive so a half-finished template stays visible.
         self.assertIn("{{ missing.field }}", data["body"])
 
-    def test_personal_template_without_partner(self):
+    def test_personal_template_without_partner_keeps_partner_fields(self):
+        """Utan mottagare ska partner-fälten stå kvar, inte raderas.
+
+        Composern applicerar default-mallen när den öppnas, alltså innan
+        någon mottagare finns. Renderades partner-fälten till tom sträng där
+        fanns inget kvar att fylla i när mottagaren väl skrevs in.
+        """
         template = self.env["mail.personal.template"].create({
             "name": "No partner",
-            "subject": "Rapport {{ date }}",
+            "subject": "Rapport {{ date }} till {{ partner.name }}",
             "body": "<p>{{ partner.name }} / {{ user.email }}</p>",
             "user_id": self.user.id,
         })
         data = template.action_use_template()
         self.assertNotIn("{{ date }}", data["subject"])
-        self.assertNotIn("{{ partner.name }}", data["body"])
+        self.assertIn("{{ partner.name }}", data["subject"])
+        self.assertIn("{{ partner.name }}", data["body"])
         self.assertNotIn("{{ user.email }}", data["body"])
+
+    def test_personal_template_render_for_partner_fills_the_rest(self):
+        """Mottagaren skrivs in efteråt: bara platshållarna fylls i."""
+        recipient = self.env["res.partner"].create({
+            "name": "Berit Karlsson",
+            "email": "berit@example.com",
+        })
+        data = self.env["mail.personal.template"].render_for_partner(
+            subject="Hej {{ partner.name }}",
+            body="<p>Hej {{ partner.name }}, egen text kvar.</p>",
+            partner_id=recipient.id,
+        )
+        self.assertEqual(data["subject"], "Hej Berit Karlsson")
+        self.assertIn("Berit Karlsson", data["body"])
+        self.assertIn("egen text kvar", data["body"])
+
+    def test_personal_template_render_for_partner_stale_id(self):
+        """Ett inaktuellt partner-id får inte krascha renderingen."""
+        data = self.env["mail.personal.template"].render_for_partner(
+            subject="Hej {{ partner.name }}",
+            body="<p>{{ user.name }}</p>",
+            partner_id=99999999,
+        )
+        self.assertIn("{{ partner.name }}", data["subject"])
+        self.assertIn(self.env.user.name, data["body"])
+
+    def test_personal_template_placeholder_with_nbsp(self):
+        """HTML-editorn kan lägga &nbsp; innanför klamrarna."""
+        recipient = self.env["res.partner"].create({
+            "name": "Cecilia Nord",
+            "email": "cecilia@example.com",
+        })
+        template = self.env["mail.personal.template"].create({
+            "name": "Nbsp",
+            "subject": "Hej",
+            "body": "<p>{{&nbsp;partner.name&nbsp;}} och {{\u00a0user.name\u00a0}}</p>",
+            "user_id": self.user.id,
+        })
+        data = template.action_use_template(recipient.id)
+        self.assertIn("Cecilia Nord", data["body"])
+        self.assertIn(self.env.user.name, data["body"])
+        self.assertNotIn("partner.name", data["body"])
 
     def test_personal_template_placeholder_fields_exposed(self):
         fields = self.env["mail.personal.template"].get_placeholder_fields()
@@ -349,6 +607,60 @@ class TestMailPersonalMailbox(TransactionCase):
         ])
         self.assertTrue(saved)
         self.assertEqual(saved.name, "contract.pdf")
+
+    def test_save_attachments_to_project_task(self):
+        project = self.env["project.project"].search([], limit=1)
+        if not project:
+            project = self.env["project.project"].create({"name": "Attachments Project"})
+        task = self.env["project.task"].create({
+            "name": "Attachment task",
+            "project_id": project.id,
+        })
+        attachment = self.env["ir.attachment"].create({
+            "name": "spec.pdf",
+            "datas": base64.b64encode(b"pdf data"),
+        })
+        message = self.env["mail.personal.mailbox"].create({
+            "user_id": self.user.id,
+            "folder_id": self.folder.id,
+            "name": "Task mail",
+            "email_from": "client@example.com",
+            "project_task_id": task.id,
+            "attachment_ids": [(6, 0, attachment.ids)],
+        })
+        action = message.action_save_attachments_to_record()
+        self.assertEqual(action["tag"], "display_notification")
+        saved = self.env["ir.attachment"].search([
+            ("res_model", "=", "project.task"),
+            ("res_id", "=", task.id),
+        ])
+        self.assertTrue(saved)
+        self.assertEqual(saved.name, "spec.pdf")
+
+    def test_save_attachments_to_partner_when_no_lead(self):
+        partner = self.env["res.partner"].create({
+            "name": "Direct Sender",
+            "email": "direct.sender@example.com",
+        })
+        attachment = self.env["ir.attachment"].create({
+            "name": "letter.pdf",
+            "datas": base64.b64encode(b"pdf data"),
+        })
+        message = self.env["mail.personal.mailbox"].create({
+            "user_id": self.user.id,
+            "folder_id": self.folder.id,
+            "name": "Sender mail",
+            "email_from": partner.email,
+            "attachment_ids": [(6, 0, attachment.ids)],
+        })
+        self.assertEqual(message.partner_id, partner)
+        message.action_save_attachments_to_record()
+        saved = self.env["ir.attachment"].search([
+            ("res_model", "=", "res.partner"),
+            ("res_id", "=", partner.id),
+        ])
+        self.assertTrue(saved)
+        self.assertEqual(saved.name, "letter.pdf")
 
     def test_save_attachments_requires_record(self):
         message = self.env["mail.personal.mailbox"].create({
@@ -475,6 +787,74 @@ class TestMailPersonalMailbox(TransactionCase):
         self.assertEqual(draft.name, "Updated")
         self.assertEqual(draft.state, "draft")
 
+    def test_composer_requires_recipient(self):
+        composer = self.env["mail.compose.message"].create({
+            "composition_mode": "personal_email",
+            "subject": "No recipient",
+            "body": "<p>Hello</p>",
+        })
+        with self.assertRaises(UserError):
+            composer._action_send_personal_email()
+
+    def test_send_renders_placeholders_against_recipient(self):
+        """Sändningen är sista chansen: inget {{ ... }} får gå ut till kund."""
+        recipient = self.env["res.partner"].create({
+            "name": "David Ek",
+            "email": "david@example.com",
+        })
+        composer = self.env["mail.compose.message"].create({
+            "composition_mode": "personal_email",
+            "subject": "Hej {{ partner.name }}",
+            "body": "<p>Hej {{ partner.name }} i {{ partner.city }}</p>",
+            "partner_ids": [(6, 0, recipient.ids)],
+        })
+        subject, body = composer._render_personal_placeholders(recipient)
+        self.assertEqual(subject, "Hej David Ek")
+        self.assertIn("David Ek", body)
+        self.assertNotIn("{{", body)
+
+    def test_send_clears_partner_placeholders_without_recipient(self):
+        """Utan mottagare blir partner-fälten tomma vid sändning, inte råa."""
+        composer = self.env["mail.compose.message"].create({
+            "composition_mode": "personal_email",
+            "subject": "Hej {{ partner.name }}",
+            "body": "<p>{{ partner.name }} / {{ user.name }}</p>",
+        })
+        subject, body = composer._render_personal_placeholders(
+            self.env["res.partner"]
+        )
+        self.assertEqual(subject, "Hej ")
+        self.assertNotIn("{{ partner.name }}", body)
+        self.assertIn(self.env.user.name, body)
+
+    def test_ensure_signature_inserted_once_above_quote(self):
+        self.user.email_signature = "<p>Kind regards, Mailbox User</p>"
+        composer = self.env["mail.compose.message"].with_user(self.user).create({
+            "composition_mode": "personal_email",
+            "subject": "Reply",
+            "body": '<p>My reply</p><div class="uw_quote"><p>quoted</p></div>',
+        })
+        body = composer._ensure_signature(composer.body)
+        self.assertEqual(body.count("Kind regards, Mailbox User"), 1)
+        self.assertLess(
+            body.index("Kind regards, Mailbox User"), body.index("uw_quote")
+        )
+        # Andra anropet ska inte dublera signaturen.
+        self.assertEqual(
+            composer._ensure_signature(body).count("Kind regards, Mailbox User"), 1
+        )
+
+    def test_ensure_signature_appends_without_quote_marker(self):
+        self.user.email_signature = "<p>Signature line</p>"
+        composer = self.env["mail.compose.message"].with_user(self.user).create({
+            "composition_mode": "personal_email",
+            "subject": "New mail",
+            "body": "<p>Plain body</p>",
+        })
+        body = composer._ensure_signature(composer.body)
+        self.assertIn("Signature line", body)
+        self.assertLess(body.index("Plain body"), body.index("Signature line"))
+
     def test_reply_body_includes_quote(self):
         message = self.env["mail.personal.mailbox"].create({
             "user_id": self.user.id,
@@ -487,7 +867,7 @@ class TestMailPersonalMailbox(TransactionCase):
         self.assertIn("sender@example.com wrote", body)
         self.assertIn("Original body", body)
 
-    def test_sent_copy_links_parent_on_reply(self):
+    def test_reply_marks_original_replied_without_copy(self):
         partner = self.env["res.partner"].create({
             "name": "Recipient",
             "email": "recipient@example.com",
@@ -505,9 +885,34 @@ class TestMailPersonalMailbox(TransactionCase):
             "partner_ids": [(6, 0, partner.ids)],
             "personal_mailbox_id": original.id,
         })
-        sent = composer._save_sent_copy()
-        self.assertEqual(sent.parent_id, original)
+        self.assertFalse(composer._save_sent_copy())
         self.assertEqual(original.state, "replied")
+        copy = self.env["mail.personal.mailbox"].search([
+            ("user_id", "=", self.user.id),
+            ("name", "=", "Re: Original"),
+        ])
+        self.assertFalse(copy)
+
+    def test_forward_marks_original_forwarded_without_copy(self):
+        partner = self.env["res.partner"].create({
+            "name": "Recipient",
+            "email": "recipient@example.com",
+        })
+        original = self.env["mail.personal.mailbox"].create({
+            "user_id": self.user.id,
+            "folder_id": self.folder.id,
+            "name": "Original",
+            "email_from": "recipient@example.com",
+        })
+        composer = self.env["mail.compose.message"].create({
+            "composition_mode": "personal_email",
+            "subject": "Fwd: Original",
+            "body": "<p>Forward</p>",
+            "partner_ids": [(6, 0, partner.ids)],
+            "personal_mailbox_id": original.id,
+        })
+        self.assertFalse(composer._save_sent_copy())
+        self.assertEqual(original.state, "forwarded")
 
     def test_timer_start_stop(self):
         message = self.env["mail.personal.mailbox"].create({
@@ -581,7 +986,7 @@ class TestMailPersonalMailbox(TransactionCase):
         self.assertEqual(agenda[0]["id"], event.id)
         self.assertEqual(agenda[0]["name"], "Team standup")
 
-    def test_save_sent_copy_with_cc_bcc_and_company(self):
+    def test_sent_mail_cc_bcc_creates_no_inbox_copy(self):
         env = self.env.user.with_user(self.user).env
         company = env["res.partner"].create({
             "name": "Acme Corp",
@@ -592,7 +997,10 @@ class TestMailPersonalMailbox(TransactionCase):
             "email": "jane.doe@example.com",
             "parent_id": company.id,
         })
-        composer = self.env["mail.compose.message"].create({
+        before = env["mail.personal.mailbox"].search_count([
+            ("user_id", "=", self.user.id),
+        ])
+        composer = env["mail.compose.message"].create({
             "composition_mode": "personal_email",
             "subject": "Hello",
             "body": "<p>Test</p>",
@@ -600,12 +1008,11 @@ class TestMailPersonalMailbox(TransactionCase):
             "email_cc": "cc@example.com",
             "email_bcc": "bcc@example.com",
         })
-        mailbox_message = composer._save_sent_copy()
-        self.assertEqual(mailbox_message.email_to, "jane.doe@example.com")
-        self.assertEqual(mailbox_message.email_cc, "cc@example.com")
-        self.assertEqual(mailbox_message.email_bcc, "bcc@example.com")
-        self.assertEqual(mailbox_message.folder_id.folder_type, "inbox")
-        self.assertEqual(mailbox_message.state, "read")
+        self.assertFalse(composer._save_sent_copy())
+        after = env["mail.personal.mailbox"].search_count([
+            ("user_id", "=", self.user.id),
+        ])
+        self.assertEqual(after, before)
 
     def test_toggle_important(self):
         env = self.env.user.with_user(self.user).env
@@ -635,8 +1042,8 @@ class TestMailPersonalMailbox(TransactionCase):
             "log_to_model": "crm.lead",
             "log_to_res_id": lead.id,
         })
-        mailbox_message = composer._save_sent_copy()
-        self.assertTrue(mailbox_message)
+        # Ingen inkorgskopia, men loggning till valt record ska ga igenom.
+        self.assertFalse(composer._save_sent_copy())
         chatter_message = env["mail.message"].search([
             ("model", "=", "crm.lead"),
             ("res_id", "=", lead.id),
@@ -661,13 +1068,12 @@ class TestMailPersonalMailbox(TransactionCase):
         env["mail.personal.scheduled.message"]._cron_send_due_messages()
         scheduled.invalidate_recordset()
         self.assertEqual(scheduled.state, "sent")
+        # Ingen inkorgskopia av det skickade schemamailet (2026-09-07).
         sent_mail = env["mail.personal.mailbox"].search([
             ("user_id", "=", self.user.id),
             ("name", "=", "Scheduled hello"),
-        ], limit=1)
-        self.assertTrue(sent_mail)
-        self.assertEqual(sent_mail.folder_id.folder_type, "inbox")
-        self.assertEqual(sent_mail.state, "read")
+        ])
+        self.assertFalse(sent_mail)
 
     def test_auto_archive_old_emails(self):
         Icp = self.env["ir.config_parameter"].sudo()

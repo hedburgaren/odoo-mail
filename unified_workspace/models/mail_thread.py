@@ -173,18 +173,10 @@ class MailThread(models.AbstractModel):
 
         mailbox_message = Mailbox.with_user(user).create(values)
         if attachments:
+            # Tilldelningen kör write-kroken, som i sin tur parsar en
+            # eventuell kalenderinbjudan i en savepoint. Ett extra anrop här
+            # skulle skapa ett andra calendar.event för samma inbjudan.
             mailbox_message.attachment_ids = [(6, 0, attachments.ids)]
-
-        # Parse any calendar invitation attachments automatically. En trasig
-        # inbjudan far aldrig stoppa sjalva mailet: ett undantag har skulle
-        # sluka hela leveransen.
-        try:
-            mailbox_message.action_parse_calendar_invitation()
-        except Exception:
-            _logger.exception(
-                "Calendar invitation parsing failed for personal email %s",
-                mailbox_message.id,
-            )
 
         _logger.info(
             "Routed personal email %(subject)s to user %(user)s",
