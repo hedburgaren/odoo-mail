@@ -189,7 +189,8 @@ export class Composer extends Component {
         };
         if (this.state.draftId) {
             values.draft_id = this.state.draftId;
-        } else if (this.props.parentMailboxId) {
+        }
+        if (this.props.parentMailboxId) {
             values.parent_mailbox_id = this.props.parentMailboxId;
         }
         await this.orm.create("mail.personal.scheduled.message", [values]);
@@ -207,11 +208,12 @@ export class Composer extends Component {
             body: this.getBody(),
             attachment_ids: [[6, 0, this.state.attachments.map((a) => a.id)]],
         };
-        if (this.props.parentMailboxId && !this.state.draftId) {
+        if (this.props.parentMailboxId) {
             values.parent_id = this.props.parentMailboxId;
         }
         const draftId = await this.mailbox.saveDraft(values);
         this.state.draftId = draftId;
+        await this.mailbox.loadMessages();
         this.notification.add("Draft saved.", { type: "success" });
     }
 
@@ -260,10 +262,13 @@ export class Composer extends Component {
             email_cc: this.state.cc.join(", "),
             email_bcc: this.state.bcc.join(", "),
         };
-        if (this.state.draftId) {
-            composerValues.personal_mailbox_id = this.state.draftId;
-        } else if (this.props.parentMailboxId) {
+        // The original message, not the draft, is the parent: sending a saved
+        // draft reply must mark the original replied and link the sent copy to
+        // it. The draft itself is removed after sending.
+        if (this.props.parentMailboxId) {
             composerValues.personal_mailbox_id = this.props.parentMailboxId;
+        } else if (this.state.draftId) {
+            composerValues.personal_mailbox_id = this.state.draftId;
         }
         if (options.logTo) {
             composerValues.log_to_model = options.logTo.model;
