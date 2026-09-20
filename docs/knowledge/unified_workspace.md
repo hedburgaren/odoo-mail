@@ -136,8 +136,10 @@ All components are OWL and registered under `web.assets_backend`.
   creation.
 - `calendar_view`: today's agenda widget, opened as the `agenda` panel from
   the sidebar.
-- `pipeline_overlay`: draggable CRM pipeline overlay. Each column is a
-  `crm.stage`; dropping an email on a column calls `action_move_to_stage()`.
+- `pipeline_overlay`: draggable CRM pipeline overlay, rendered as the
+  `pipeline` panel next to the email list so messages stay draggable. Each
+  column is a `crm.stage`; dropping an email on a column calls
+  `action_move_to_stage()`.
 - `contact_card`: sender partner card with recent pipeline and open tasks.
 
 ### Services

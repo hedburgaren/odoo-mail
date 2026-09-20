@@ -9,6 +9,7 @@ import { ReadingPane } from "@unified_workspace/components/reading_pane/reading_
 import { CalendarPanel } from "@unified_workspace/components/calendar_panel/calendar_panel";
 import { CalendarView } from "@unified_workspace/components/calendar_view/calendar_view";
 import { GroupInboxPanel } from "@unified_workspace/components/group_inbox_panel/group_inbox_panel";
+import { PipelineOverlay } from "@unified_workspace/components/pipeline_overlay/pipeline_overlay";
 
 /**
  * Main Unified Workspace client action.
@@ -19,7 +20,7 @@ import { GroupInboxPanel } from "@unified_workspace/components/group_inbox_panel
  */
 export class Workspace extends Component {
     static template = "unified_workspace.Workspace";
-    static components = { Sidebar, EmailList, ReadingPane, CalendarPanel, CalendarView, GroupInboxPanel };
+    static components = { Sidebar, EmailList, ReadingPane, CalendarPanel, CalendarView, GroupInboxPanel, PipelineOverlay };
     static props = ["*"];
 
     setup() {

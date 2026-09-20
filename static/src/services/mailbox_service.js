@@ -4,7 +4,6 @@ import { registry } from "@web/core/registry";
 import { Reactive } from "@web/core/utils/reactive";
 import { markup } from "@odoo/owl";
 import { Composer } from "@unified_workspace/components/composer/composer";
-import { PipelineOverlay } from "@unified_workspace/components/pipeline_overlay/pipeline_overlay";
 
 /**
  * Reactive mailbox state and RPC helpers for the Unified Workspace.
@@ -517,9 +516,9 @@ export class MailboxService extends Reactive {
     }
 
     openPipelineOverlay() {
-        this.env.services.dialog.add(PipelineOverlay, {}, {
-            size: "xl",
-        });
+        // Rendera som panel, inte dialog: overlayn är en drop-yta och
+        // maillistan måste ligga kvar synlig och dragbar bredvid (2026-09-20).
+        this.setActivePanel("pipeline");
     }
 
     async moveToStage(messageId, stageId) {

@@ -72,6 +72,10 @@ export class PipelineOverlay extends Component {
         await this.loadPipeline();
     }
 
+    onBack() {
+        this.mailbox.setActivePanel("mail");
+    }
+
     onClose() {
         if (this.props.close) {
             this.props.close();
