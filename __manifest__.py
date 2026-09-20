@@ -17,12 +17,15 @@ Features
 --------
 
 * Personal email inbox per user (IMAP) routed into Discuss.
-* Folder structure: Inbox, Sent, Drafts, Trash and custom folders.
+* Folder structure: Inbox plus custom folders; sent, draft and trashed mail is
+  represented by message state instead of separate system folders.
 * Conversation threads grouped by Message-ID and parent.
 * Full composer with To/CC/BCC, attachments and signatures.
+* Drafts saved and reopened in the composer, with a Drafts quick filter.
 * One-click CRM actions: create lead, log to lead, create task, book meeting.
 * Contact card with pipeline and activities in the reading pane.
-* Calendar and chat accessible from the same sidebar.
+* Draggable CRM pipeline overlay for moving emails into CRM stages.
+* Daily agenda widget and calendar accessible from the same sidebar.
 * Search and filters across all folders.
 
 The module reuses existing Odoo infrastructure (fetchmail, mail.message,

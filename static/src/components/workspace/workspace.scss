@@ -128,7 +128,8 @@
 // are actually visible and centered.
 .o-overlay-item:has(.o-unified-composer),
 .o-overlay-item:has(.o-unified-record-picker),
-.o-overlay-item:has(.o-unified-contact-creator) {
+.o-overlay-item:has(.o-unified-contact-creator),
+.o-overlay-item:has(.o-unified-pipeline-overlay) {
     position: fixed;
     inset: 0;
     width: 100%;
@@ -142,7 +143,8 @@
 
     .o-unified-composer,
     .o-unified-record-picker,
-    .o-unified-contact-creator {
+    .o-unified-contact-creator,
+    .o-unified-pipeline-overlay {
         width: 100%;
         max-width: 1200px;
         height: 90vh;
@@ -158,5 +160,15 @@
         height: auto;
         max-width: 500px;
         padding: 1rem;
+    }
+}
+
+.o-unified-pipeline-overlay {
+    .o-unified-pipeline-dropzone {
+        background-color: rgba(var(--o-color-primary-rgb), 0.04);
+    }
+
+    .o-unified-pipeline-lead {
+        box-shadow: 0 0.0625rem 0.125rem rgba(0, 0, 0, 0.08);
     }
 }

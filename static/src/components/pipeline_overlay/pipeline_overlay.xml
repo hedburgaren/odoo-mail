@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="unified_workspace.PipelineOverlay">
+        <div class="o-unified-pipeline-overlay d-flex flex-column h-100">
+            <div class="o-unified-pipeline-header p-2 border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="m-0">CRM Pipeline</h5>
+                <button type="button" class="btn-close" t-on-click="onClose" t-if="props.close or props.onClose"/>
+            </div>
+            <div class="o-unified-pipeline-body flex-grow-1 overflow-auto p-2">
+                <div t-if="state.isLoading" class="d-flex justify-content-center p-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+                <div t-else="" class="o-unified-pipeline-columns d-flex gap-2 h-100">
+                    <t t-foreach="state.stages" t-as="stage" t-key="stage.id">
+                        <div
+                            class="o-unified-pipeline-column card flex-shrink-0 bg-light"
+                            style="width: 240px;"
+                            t-on-dragover.prevent="onDragOver"
+                            t-on-drop.prevent="(ev) => onDrop(ev, stage.id)">
+                            <div class="card-header py-2 px-3 fw-bold">
+                                <t t-esc="stage.name"/>
+                                <span class="badge bg-secondary ms-1" t-esc="state.leadsByStage[stage.id].length"/>
+                            </div>
+                            <div class="card-body p-2 overflow-auto">
+                                <div class="o-unified-pipeline-dropzone text-center text-muted small mb-2 p-1 border border-dashed rounded">
+                                    Drop email here
+                                </div>
+                                <t t-foreach="state.leadsByStage[stage.id]" t-as="lead" t-key="lead.id">
+                                    <div class="o-unified-pipeline-lead card mb-2">
+                                        <div class="card-body p-2">
+                                            <div class="fw-bold small text-truncate" t-esc="lead.name"/>
+                                            <div t-if="lead.partner_id" class="small text-muted text-truncate" t-esc="lead.partner_id[1]"/>
+                                        </div>
+                                    </div>
+                                </t>
+                            </div>
+                        </div>
+                    </t>
+                    <div t-if="!state.stages.length" class="text-muted p-4">
+                        No CRM stages configured.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </t>
+</templates>

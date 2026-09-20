@@ -87,6 +87,14 @@ export class Sidebar extends Component {
         this.mailbox.openCalendar();
     }
 
+    onOpenAgenda() {
+        this.mailbox.openAgenda();
+    }
+
+    onOpenPipeline() {
+        this.mailbox.openPipelineOverlay();
+    }
+
     onOpenChannel(channelId) {
         this.mailbox.openChannel(channelId);
     }

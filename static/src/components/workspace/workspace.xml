@@ -6,6 +6,9 @@
             <t t-if="mailbox.activePanel === 'calendar'">
                 <CalendarPanel/>
             </t>
+            <t t-elif="mailbox.activePanel === 'agenda'">
+                <CalendarView/>
+            </t>
             <t t-elif="mailbox.activePanel === 'groupInbox'">
                 <GroupInboxPanel/>
             </t>

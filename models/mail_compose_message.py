@@ -97,11 +97,43 @@ class MailComposeMessage(models.TransientModel):
     def _save_sent_copy(self):
         """Post-send bookkeeping for a personal email.
 
-        Ingen inkorgskopia längre: blandad in- och utkorg var rörigt och
-        Gmail sparar utgående i sin Sent-katalog (Chrille 2026-09-07).
-        Kvar: statusflytt på originalet och loggning till valt record.
+        Sparar en läskopia i användarens Inbox med state ``read`` så att
+        utgående mail syns i workspacet (Sent/Drafts/Trash-mapparna togs bort
+        2026-08-26 och ersattes av state; kopian hamnar därför i Inbox).
+        Länkar samtidigt originalet till replied/forwarded och loggar till
+        valt record. Returnerar den skapade kopian.
         """
         self.ensure_one()
+        Mailbox = self.env["mail.personal.mailbox"]
+        Folder = self.env["mail.personal.folder"]
+        user = self.env.user
+        inbox = Folder._get_system_folder(user, "inbox")
+
+        cc_emails = [e.strip() for e in (self.email_cc or "").split(",") if e.strip()]
+        bcc_emails = [e.strip() for e in (self.email_bcc or "").split(",") if e.strip()]
+        excluded = {e.lower() for e in cc_emails + bcc_emails}
+        to_partners = self.partner_ids.filtered(
+            lambda p: p.email and p.email.lower() not in excluded
+        )
+
+        values = {
+            "user_id": user.id,
+            "folder_id": inbox.id,
+            "name": self.subject or _("(No subject)"),
+            "body": self.body or "",
+            "email_from": user.email_formatted or user.email or "",
+            "email_to": ", ".join(to_partners.mapped("email")),
+            "email_cc": self.email_cc or "",
+            "email_bcc": self.email_bcc or "",
+            "state": "read",
+            "date": fields.Datetime.now(),
+        }
+        if self.personal_mailbox_id:
+            values["parent_id"] = self.personal_mailbox_id.id
+        sent = Mailbox.with_user(user).create(values)
+        if self.attachment_ids:
+            sent.attachment_ids = [(6, 0, self.attachment_ids.ids)]
+
         # Link the original message if it was a reply/forward.
         if self.personal_mailbox_id:
             if self.subject and self.subject.lower().startswith("fwd:"):
@@ -111,6 +143,8 @@ class MailComposeMessage(models.TransientModel):
 
         if self.log_to_model and self.log_to_res_id:
             self._post_to_record()
+
+        return sent
 
     def _post_to_record(self):
         """Post a copy of the sent email to the chatter of another record."""

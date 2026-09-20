@@ -396,6 +396,59 @@ class TestMailPersonalMailbox(TransactionCase):
         self.assertIn("sender@example.com wrote", body)
         self.assertIn("Original body", body)
 
+    def test_forward_body_includes_header_and_quote(self):
+        message = self.env["mail.personal.mailbox"].create({
+            "user_id": self.user.id,
+            "folder_id": self.folder.id,
+            "name": "Original",
+            "email_from": "sender@example.com",
+            "email_to": "me@example.com",
+            "body": "<p>Original body</p>",
+        })
+        body = message.action_get_forward_body()
+        self.assertIn("Forwarded message", body)
+        self.assertIn("sender@example.com", body)
+        self.assertIn("Original body", body)
+
+    def test_move_email_to_crm_stage(self):
+        stage = self.env["crm.stage"].create({"name": "Test Stage"})
+        message = self.env["mail.personal.mailbox"].create({
+            "user_id": self.user.id,
+            "folder_id": self.folder.id,
+            "name": "Deal",
+            "email_from": "deal@example.com",
+        })
+        result = message.action_move_to_stage(stage.id)
+        self.assertTrue(message.crm_lead_id)
+        self.assertEqual(message.crm_lead_id.stage_id, stage)
+        self.assertEqual(result["lead_id"], message.crm_lead_id.id)
+        self.assertEqual(result["stage_id"], stage.id)
+
+    def test_move_existing_lead_to_stage(self):
+        stage = self.env["crm.stage"].create({"name": "Second Stage"})
+        lead = self.env["crm.lead"].create({
+            "name": "Existing deal",
+            "type": "opportunity",
+        })
+        message = self.env["mail.personal.mailbox"].create({
+            "user_id": self.user.id,
+            "folder_id": self.folder.id,
+            "name": "Existing deal",
+            "crm_lead_id": lead.id,
+        })
+        message.action_move_to_stage(stage.id)
+        self.assertEqual(lead.stage_id, stage)
+        self.assertEqual(message.crm_lead_id, lead)
+
+    def test_move_to_unknown_stage_raises(self):
+        message = self.env["mail.personal.mailbox"].create({
+            "user_id": self.user.id,
+            "folder_id": self.folder.id,
+            "name": "No stage",
+        })
+        with self.assertRaises(UserError):
+            message.action_move_to_stage(99999999)
+
     def test_sent_copy_links_parent_on_reply(self):
         partner = self.env["res.partner"].create({
             "name": "Recipient",
@@ -436,12 +489,20 @@ class TestMailPersonalMailbox(TransactionCase):
 
     def test_log_time_to_task(self):
         env = self.env.user.with_user(self.user).env
-        project = env["project.project"].create({"name": "Test Project"})
-        task = env["project.task"].create({
+        # Projekt/task/anställd skapas som admin: en ren base.group_user saknar
+        # create-rätt på project.project. Återanvänd ett befintligt projekt när
+        # ett finns: testregistret laddar bara modulens beroenden (inte
+        # sale_timesheet), men i den här databasen ligger sale_timesheets
+        # billing_type kvar som NOT NULL-kolumn och en ren create faller då
+        # (2026-09-20).
+        project = self.env["project.project"].search([], limit=1)
+        if not project:
+            project = self.env["project.project"].create({"name": "Test Project"})
+        task = self.env["project.task"].create({
             "name": "Test Task",
             "project_id": project.id,
         })
-        employee = env["hr.employee"].create({
+        employee = self.env["hr.employee"].create({
             "name": "Test Employee",
             "user_id": self.user.id,
         })
@@ -454,6 +515,7 @@ class TestMailPersonalMailbox(TransactionCase):
         })
         action = message.action_log_time_to_task()
         self.assertEqual(action["tag"], "display_notification")
+        self.assertIn("2.50", action["params"]["message"])
         line = env["account.analytic.line"].search([
             ("task_id", "=", task.id),
             ("employee_id", "=", employee.id),

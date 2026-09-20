@@ -4,6 +4,7 @@ import { registry } from "@web/core/registry";
 import { Reactive } from "@web/core/utils/reactive";
 import { markup } from "@odoo/owl";
 import { Composer } from "@unified_workspace/components/composer/composer";
+import { PipelineOverlay } from "@unified_workspace/components/pipeline_overlay/pipeline_overlay";
 
 /**
  * Reactive mailbox state and RPC helpers for the Unified Workspace.
@@ -29,6 +30,7 @@ export class MailboxService extends Reactive {
             starred: false,
             attachments: false,
             important: false,
+            drafts: false,
         };
         this.agenda = [];
         this.channels = [];
@@ -130,6 +132,12 @@ export class MailboxService extends Reactive {
                 domain.unshift("&");
             }
             domain.push(["is_important", "=", true]);
+        }
+        if (this.filters.drafts) {
+            if (domain.length) {
+                domain.unshift("&");
+            }
+            domain.push(["state", "=", "draft"]);
         }
         return domain;
     }
@@ -402,7 +410,9 @@ export class MailboxService extends Reactive {
         }
 
         let defaultBody = "";
-        if (mode !== "forward") {
+        if (mode === "forward") {
+            defaultBody = await this.orm.call("mail.personal.mailbox", "action_get_forward_body", [[messageId]]);
+        } else {
             defaultBody = await this.orm.call("mail.personal.mailbox", "action_get_reply_body", [[messageId]]);
         }
 
@@ -499,6 +509,26 @@ export class MailboxService extends Reactive {
 
     async openCalendar() {
         this.setActivePanel("calendar");
+    }
+
+    async openAgenda() {
+        this.setActivePanel("agenda");
+        await this.loadAgenda();
+    }
+
+    openPipelineOverlay() {
+        this.env.services.dialog.add(PipelineOverlay, {}, {
+            size: "xl",
+        });
+    }
+
+    async moveToStage(messageId, stageId) {
+        await this.orm.call(
+            "mail.personal.mailbox",
+            "action_move_to_stage",
+            [[messageId], stageId]
+        );
+        await this.loadMessages();
     }
 
     async openGroupInbox() {

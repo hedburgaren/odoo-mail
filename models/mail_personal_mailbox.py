@@ -292,13 +292,19 @@ class MailPersonalMailbox(models.Model):
                 "view_mode": "form",
                 "target": "current",
             }
-        lead = self.env["crm.lead"].create({
+        lead_values = {
             "name": self.name,
             "partner_id": self.partner_id.id,
             "description": self.body,
             "type": "lead",
-            "source_id": self.env.ref("crm.utm_source_email", raise_if_not_found=False).id,
-        })
+        }
+        # utm_source_email finns bara när CRM:s data är laddad; en trasig
+        # extern databas gav AttributeError på None.id och hela "Skapa lead"
+        # kraschade (test_create_lead, 2026-09-20).
+        source = self.env.ref("crm.utm_source_email", raise_if_not_found=False)
+        if source:
+            lead_values["source_id"] = source.id
+        lead = self.env["crm.lead"].create(lead_values)
         self.crm_lead_id = lead
         return {
             "type": "ir.actions.act_window",
@@ -321,6 +327,28 @@ class MailPersonalMailbox(models.Model):
                 "default_type": "lead",
             },
         }
+
+    def action_move_to_stage(self, stage_id):
+        """Move the email's CRM opportunity to the given pipeline stage.
+
+        Creates an opportunity from the email when none is linked yet, then
+        writes the stage. Used by the draggable CRM pipeline overlay.
+        """
+        self.ensure_one()
+        stage = self.env["crm.stage"].browse(int(stage_id))
+        if not stage.exists():
+            raise UserError(_("The CRM stage does not exist."))
+        lead = self.crm_lead_id
+        if not lead:
+            lead = self.env["crm.lead"].create({
+                "name": self.name,
+                "partner_id": self.partner_id.id,
+                "description": self.body,
+                "type": "opportunity",
+            })
+            self.crm_lead_id = lead
+        lead.write({"stage_id": stage.id})
+        return {"lead_id": lead.id, "stage_id": stage.id}
 
     def action_create_task(self):
         self.ensure_one()
@@ -607,10 +635,15 @@ class MailPersonalMailbox(models.Model):
         if not self.timer_duration:
             raise UserError(_("No time has been recorded for this email."))
         employee = self.env.user.employee_id
+        if not employee:
+            raise UserError(_(
+                "No employee is linked to your user, so the time cannot be logged."
+            ))
+        hours = self.timer_duration
         self.env["account.analytic.line"].create({
             "name": self.name,
             "date": fields.Date.context_today(self),
-            "unit_amount": self.timer_duration,
+            "unit_amount": hours,
             "task_id": task.id,
             "project_id": task.project_id.id,
             "employee_id": employee.id,
@@ -621,9 +654,11 @@ class MailPersonalMailbox(models.Model):
             "tag": "display_notification",
             "params": {
                 "type": "success",
+                # hours fångas före nollningen: meddelandet visade annars
+                # alltid 0.00 (bugg hittad 2026-09-20).
                 "message": _(
                     "%(hours).2f hours logged on %(task)s",
-                    hours=self.timer_duration,
+                    hours=hours,
                     task=task.name,
                 ),
                 "next": {"type": "ir.actions.act_window_close"},
@@ -837,7 +872,10 @@ class MailPersonalMailbox(models.Model):
 
     def action_reply_all(self):
         self.ensure_one()
-        partners = self.partner_id
+        # Reply-all ska nå alla ursprungliga mottagare, inte bara avsändaren.
+        # Den publika ytan använder främst frontendens reply_all, men metoden
+        # är även anropbar via RPC och ska då bete sig likadant.
+        partners = self._partners_from_headers(self.email_from, self.email_to, self.email_cc)
         return {
             "type": "ir.actions.act_window",
             "res_model": "mail.compose.message",
@@ -865,9 +903,46 @@ class MailPersonalMailbox(models.Model):
                 "default_model": self._name,
                 "default_res_id": self.id,
                 "default_subject": _("Fwd: %(subject)s", subject=self.name or ""),
-                "default_body": self.body,
+                "default_body": self._prepare_forward_body(),
             },
         }
+
+    def action_get_forward_body(self):
+        """Return the quoted forward body for this message."""
+        self.ensure_one()
+        return self._prepare_forward_body()
+
+    def _partners_from_headers(self, *headers):
+        """Resolve res.partner records for the email addresses in headers."""
+        addresses = []
+        for header in headers:
+            addresses.extend(email_split(header or ""))
+        addresses = list(dict.fromkeys(a.lower() for a in addresses if a))
+        if not addresses:
+            return self.env["res.partner"]
+        return self.env["res.partner"].search([("email", "=ilike", addresses)])
+
+    def _prepare_forward_body(self):
+        """Build the quoted body used when forwarding a message."""
+        self.ensure_one()
+        header = _(
+            "---------- Forwarded message ----------\n"
+            "From: %(from)s\n"
+            "Date: %(date)s\n"
+            "Subject: %(subject)s\n"
+            "To: %(to)s",
+            **{
+                "from": self.email_from or _("Unknown sender"),
+                "date": self.date,
+                "subject": self.name or _("(No subject)"),
+                "to": self.email_to or "",
+            },
+        )
+        header = Markup.escape(header).replace("\n", Markup("<br/>"))
+        return Markup(
+            '<p><br></p><div class="uw_forward"><p class="uw_forward_header">%s</p>'
+            "<blockquote>%s</blockquote></div>"
+        ) % (header, self.body or Markup(""))
 
     def _prepare_reply_body(self):
         self.ensure_one()

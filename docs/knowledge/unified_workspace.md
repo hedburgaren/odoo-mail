@@ -42,9 +42,16 @@ Thread, draft, activity and timer methods:
 - `action_get_thread()` returns the root message and all descendants in
   chronological order for the reading pane thread panel.
 - `save_draft()` creates or updates a `mail.personal.mailbox` record in the
-  user's Drafts folder from composer data.
+  user's Inbox with `state = "draft"` from composer data. Drafts are found via
+  the Drafts quick filter and reopened through the composer's `draftId` prop.
 - `action_get_reply_body()` returns the standard quoted reply body for a
-  message.
+  message. `action_get_forward_body()` returns the forward variant with a
+  "Forwarded message" header and the original body quoted.
+- `action_reply_all()` resolves every address in `From`/`To`/`CC` to partners
+  so a reply-all reaches the original recipients, not only the sender.
+- `action_move_to_stage(stage_id)` creates a `crm.lead` from the email when
+  none is linked, then moves it to the given `crm.stage`. Used by the
+  draggable CRM pipeline overlay.
 - `action_log_activity()` opens the standard `mail.activity.schedule` wizard
   prefilled with the email subject and body.
 - `action_save_attachments_to_record()` copies the email attachments to the
@@ -78,12 +85,15 @@ and `.ics` attachments are parsed automatically.
 
 ### `mail.compose.message`
 
-Adds `composition_mode = "personal_email"` and saves a copy of sent messages
-in the user's Sent folder with signatures applied.
+Adds `composition_mode = "personal_email"` and, in `_save_sent_copy()`, saves
+a read copy of sent messages in the sender's Inbox (`state = "read"`), because
+Sent/Drafts/Trash are represented by message state rather than folders. The
+copy preserves To/CC/BCC, attachments and, for replies and forwards, the
+`parent_id` of the original message, which is marked `replied`/`forwarded`.
 
 The composer calls the public `action_send_mail` method and passes To/CC/BCC
-partners and attachments so the Sent copy preserves the full recipient list
-and attachments.
+partners and attachments so the sent copy keeps the full recipient list and
+attachments.
 
 ## Security
 
@@ -116,18 +126,22 @@ All components are OWL and registered under `web.assets_backend`.
 - `thread_panel`: conversation thread list inside the reading pane.
 - `calendar_panel`: embedded calendar view for today's agenda and event
   creation.
-- `calendar_view`: placeholder view for future agenda widgets.
+- `calendar_view`: today's agenda widget, opened as the `agenda` panel from
+  the sidebar.
+- `pipeline_overlay`: draggable CRM pipeline overlay. Each column is a
+  `crm.stage`; dropping an email on a column calls `action_move_to_stage()`.
 - `contact_card`: sender partner card with recent pipeline and open tasks.
 
 ### Services
 
 - `mailbox`: reactive state, folder/message loading, search, filters and RPC
   wrappers for actions including calendar RSVP. It supports an "All folders"
-  view and quick filters for unread, starred and with-attachments. It extends
-  Odoo's `Reactive` class and is consumed by components via
+  view and quick filters for unread, starred, with-attachments, important and
+  drafts. It extends Odoo's `Reactive` class and is consumed by components via
   `useState(useService("mailbox"))` so the UI updates when messages or folders
   change. After an RSVP action the service patches the local message state
-  before reloading.
+  before reloading. It also exposes `openAgenda()` for the daily agenda panel,
+  `openPipelineOverlay()` and `moveToStage()` for the CRM pipeline overlay.
 
 ### Keyboard shortcuts
 

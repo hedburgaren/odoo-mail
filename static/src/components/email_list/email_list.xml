@@ -34,6 +34,12 @@
                         t-on-click="() => onToggleFilter('important')">
                         Important
                     </button>
+                    <button
+                        class="btn btn-xs btn-outline-secondary"
+                        t-att-class="{ 'active': mailbox.filters.drafts }"
+                        t-on-click="() => onToggleFilter('drafts')">
+                        Drafts
+                    </button>
                 </div>
             </div>
 
