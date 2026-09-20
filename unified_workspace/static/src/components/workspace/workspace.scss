@@ -21,7 +21,7 @@
         }
 
         &:focus-visible {
-            outline: 2px solid var(--o-color-primary);
+            outline: 2px solid var(--primary);
             outline-offset: -2px;
         }
     }
@@ -36,7 +36,7 @@
         }
 
         &.unread {
-            background-color: rgba(var(--o-color-primary-rgb), 0.05);
+            background-color: rgba(var(--primary-rgb), 0.05);
 
             &::before {
                 content: "";
@@ -45,16 +45,22 @@
                 bottom: 0;
                 left: 0;
                 width: 3px;
-                background-color: var(--o-color-primary);
+                background-color: var(--primary);
             }
 
             .o-unified-sender {
-                color: var(--o-color-primary);
+                color: var(--primary);
             }
         }
 
+        // Row the right-click menu is acting on. Gmail highlights the target
+        // without opening it, so this is not the same as .active.
+        &.o-unified-context-target {
+            background-color: rgba(var(--primary-rgb), 0.1);
+        }
+
         &:focus-visible {
-            outline: 2px solid var(--o-color-primary);
+            outline: 2px solid var(--primary);
             outline-offset: -2px;
         }
 
@@ -74,7 +80,7 @@
         height: 8px;
         margin-right: 6px;
         border-radius: 50%;
-        background-color: var(--o-color-primary);
+        background-color: var(--primary);
     }
 
     .o-unified-sender,
@@ -108,8 +114,8 @@
         transition: border-color 0.15s ease, background-color 0.15s ease;
 
         &.drag-over {
-            border-color: var(--o-color-primary) !important;
-            background-color: rgba(var(--o-color-primary-rgb), 0.05);
+            border-color: var(--primary) !important;
+            background-color: rgba(var(--primary-rgb), 0.05);
         }
     }
 
@@ -118,13 +124,13 @@
 
         &:hover,
         &.active {
-            background-color: rgba(var(--o-color-primary-rgb), 0.08);
+            background-color: rgba(var(--primary-rgb), 0.08);
         }
     }
 
     .o-unified-email-list-search .btn.active {
-        background-color: var(--o-color-primary);
-        border-color: var(--o-color-primary);
+        background-color: var(--primary);
+        border-color: var(--primary);
         color: #fff;
     }
 
@@ -143,7 +149,7 @@
 
         &:hover,
         &.active {
-            background-color: rgba(var(--o-color-primary-rgb), 0.08);
+            background-color: rgba(var(--primary-rgb), 0.08);
         }
     }
 
@@ -162,7 +168,7 @@
     z-index: 1080;
     min-width: 220px;
     padding: 4px;
-    background-color: #fff;
+    background-color: var(--o-cc1-bg, #fff);
     border: 1px solid rgba(0, 0, 0, 0.12);
     border-radius: 0.375rem;
     box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.18);
@@ -181,7 +187,7 @@
 
         &:hover,
         &:focus-visible {
-            background-color: rgba(var(--o-color-primary-rgb), 0.1);
+            background-color: rgba(var(--primary-rgb), 0.1);
             outline: none;
         }
     }
@@ -229,7 +235,7 @@
     max-height: 90vh;
     overflow: auto;
     padding: 1.5rem;
-    background-color: #fff;
+    background-color: var(--o-cc1-bg, #fff);
     border-radius: 0.5rem;
     box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.2);
 
@@ -277,7 +283,7 @@
         max-width: 1200px;
         height: 90vh;
         max-height: 900px;
-        background-color: #fff;
+        background-color: var(--o-cc1-bg, #fff);
         border-radius: 0.5rem;
         box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.15);
         overflow: hidden;

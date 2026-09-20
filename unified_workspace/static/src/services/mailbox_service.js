@@ -315,18 +315,45 @@ export class MailboxService extends Reactive {
         await this.orm.call("mail.personal.mailbox", "action_mark_read", [[messageId]]);
         const message = this.messages.find((m) => m.id === messageId);
         if (message) {
+            const wasUnread = message.state === "unread";
             message.state = "read";
+            if (wasUnread) {
+                this._adjustUnreadCount(message, -1);
+            }
         }
-        await this._loadFolderUnreadCounts();
     }
 
     async markAsUnread(messageId) {
         await this.orm.call("mail.personal.mailbox", "action_mark_unread", [[messageId]]);
         const message = this.messages.find((m) => m.id === messageId);
         if (message) {
+            const wasUnread = message.state === "unread";
             message.state = "unread";
+            if (!wasUnread) {
+                this._adjustUnreadCount(message, 1);
+            }
         }
-        await this._loadFolderUnreadCounts();
+    }
+
+    /**
+     * Move the cached unread counters by one, without a server round trip.
+     *
+     * markAsRead runs on every J/K keypress, so a grouped read_group per
+     * action would be one request per keystroke. The counters are re-synced
+     * whenever the folders are loaded again.
+     */
+    _adjustUnreadCount(message, delta) {
+        if (!message || !delta) {
+            return;
+        }
+        const folderId = Array.isArray(message.folder_id)
+            ? message.folder_id[0]
+            : message.folder_id;
+        const folder = this.folders.find((f) => f.id === folderId);
+        if (folder && folder.unread_count !== undefined) {
+            folder.unread_count = Math.max(0, folder.unread_count + delta);
+        }
+        this.totalUnreadCount = Math.max(0, this.totalUnreadCount + delta);
     }
 
     async toggleStarred(messageId) {
@@ -347,9 +374,12 @@ export class MailboxService extends Reactive {
 
     async moveToTrash(messageId) {
         await this.orm.call("mail.personal.mailbox", "action_move_to_trash", [[messageId]]);
+        const message = this.messages.find((m) => m.id === messageId);
+        if (message && message.state === "unread") {
+            this._adjustUnreadCount(message, -1);
+        }
         this.messages = this.messages.filter((m) => m.id !== messageId);
         this.selectedMessageId = null;
-        await this._loadFolderUnreadCounts();
     }
 
     selectNextMessage() {

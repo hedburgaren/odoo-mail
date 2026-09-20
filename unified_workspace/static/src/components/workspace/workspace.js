@@ -55,6 +55,11 @@ export class Workspace extends Component {
         if (isEditable) {
             return;
         }
+        // Never swallow browser and OS combinations (Ctrl/Cmd/Alt). Gmail does
+        // the same: Ctrl+F must open find, not forward the selected mail.
+        if (ev.ctrlKey || ev.metaKey || ev.altKey) {
+            return;
+        }
 
         const key = ev.key.toLowerCase();
 
@@ -144,6 +149,10 @@ export class Workspace extends Component {
 
     _handleGoShortcut(key) {
         this.state.goPending = false;
+        // The sidebar switches to the mail panel before selecting a folder;
+        // the shortcut has to do the same, or G+I from Calendar/Group Inbox
+        // changes the folder behind the visible panel.
+        this.mailbox.setActivePanel("mail");
         const map = {
             i: () => this.mailbox.selectFolderByType("inbox"),
             a: () => this.mailbox.selectFolder("all"),

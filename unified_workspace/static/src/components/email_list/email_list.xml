@@ -44,12 +44,17 @@
                 </div>
             </div>
 
-            <div t-else="" class="o-unified-email-list-items flex-grow-1 overflow-auto">
+            <div
+                t-else=""
+                class="o-unified-email-list-items flex-grow-1 overflow-auto"
+                role="listbox"
+                aria-label="Email list"
+                tabindex="-1">
                 <div t-if="mailbox.messages.length">
                     <t t-foreach="mailbox.messages" t-as="message" t-key="message.id">
                         <div
                             class="o-unified-email-list-item p-2 border-bottom cursor-pointer"
-                            t-att-class="{ 'active': mailbox.selectedMessageId === message.id, 'unread': message.state === 'unread' }"
+                            t-att-class="{ 'active': mailbox.selectedMessageId === message.id, 'unread': message.state === 'unread', 'o-unified-context-target': isContextTarget(message.id) }"
                             t-att-data-message-id="message.id"
                             t-att-aria-selected="mailbox.selectedMessageId === message.id"
                             t-on-click="onSelectMessage"

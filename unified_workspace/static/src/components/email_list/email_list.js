@@ -59,12 +59,13 @@ export class EmailList extends Component {
     /**
      * Open the right-click menu for a message.
      *
-     * Right-click highlights the row, like Gmail, but does not mark it read.
+     * Like Gmail, right-click marks the row as the menu target and leaves the
+     * opened message alone: moving selectedMessageId here would swap the
+     * reading pane to a message whose body was never fetched.
      */
     onContextMenu(ev) {
         ev.preventDefault();
         const messageId = parseInt(ev.currentTarget.dataset.messageId, 10);
-        this.mailbox.selectedMessageId = messageId;
         this.state.contextMenu = {
             x: ev.clientX,
             y: ev.clientY,
@@ -75,6 +76,10 @@ export class EmailList extends Component {
     closeContextMenu = () => {
         this.state.contextMenu = null;
     };
+
+    isContextTarget(messageId) {
+        return Boolean(this.state.contextMenu && this.state.contextMenu.messageId === messageId);
+    }
 
     getContextMenuItems(messageId) {
         const message = this.mailbox.messages.find((m) => m.id === messageId);
