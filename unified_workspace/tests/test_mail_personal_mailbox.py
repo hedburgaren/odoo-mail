@@ -295,11 +295,13 @@ class TestMailPersonalMailbox(TransactionCase):
         message.attachment_ids = [(6, 0, attachment.ids)]
         event = message.calendar_event_id
         self.assertTrue(event, "Write-kroken ska ha parsat inbjudan")
+        # Räkna hela eventmängden i stället för på namn: basdatabasen kan
+        # innehålla ett gammalt event med samma SUMMARY, och då blir en
+        # namnräkning fel oavsett modulens beteende.
+        events_before = self.env["calendar.event"].search([])
         message.action_parse_calendar_invitation()
         self.assertEqual(message.calendar_event_id, event)
-        self.assertEqual(
-            self.env["calendar.event"].search_count([("name", "=", "Year End Review")]), 1,
-        )
+        self.assertEqual(self.env["calendar.event"].search([]), events_before)
 
     def test_write_attachments_on_multiple_messages(self):
         """write() på flera poster får inte fällas av kalenderparsningen."""

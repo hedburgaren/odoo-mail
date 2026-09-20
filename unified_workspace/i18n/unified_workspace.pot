@@ -6,8 +6,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Odoo Server 18.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-25 07:58+0000\n"
-"PO-Revision-Date: 2026-08-25 07:58+0000\n"
+"POT-Creation-Date: 2026-09-20 10:44+0000\n"
+"PO-Revision-Date: 2026-09-20 10:44+0000\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "MIME-Version: 1.0\n"
@@ -49,6 +49,12 @@ msgstr ""
 
 #. module: unified_workspace
 #. odoo-python
+#: code:addons/unified_workspace/models/mail_personal_folder.py:0
+msgid "%(type)s is no longer a system folder."
+msgstr ""
+
+#. module: unified_workspace
+#. odoo-python
 #: code:addons/unified_workspace/models/mail_compose_message.py:0
 #: code:addons/unified_workspace/models/mail_personal_mailbox.py:0
 #: code:addons/unified_workspace/models/mail_thread.py:0
@@ -59,14 +65,6 @@ msgstr ""
 #. odoo-javascript
 #: code:addons/unified_workspace/static/src/components/composer/composer.xml:0
 msgid "-- Select template --"
-msgstr ""
-
-#. module: unified_workspace
-#. odoo-python
-#: code:addons/unified_workspace/models/mail_personal_mailbox.py:0
-msgid ""
-"<p></p><p>On %(date)s, %(sender)s "
-"wrote:</p><blockquote>%(body)s</blockquote>"
 msgstr ""
 
 #. module: unified_workspace
@@ -145,6 +143,17 @@ msgid "Archive after (days)"
 msgstr ""
 
 #. module: unified_workspace
+#: model_terms:ir.ui.view,arch_db:unified_workspace.res_config_settings_view_form_unified_workspace
+msgid "Archive personal emails older than the configured threshold."
+msgstr ""
+
+#. module: unified_workspace
+#: model:ir.model.fields.selection,name:unified_workspace.selection__mail_personal_mailbox__state__archived
+#: model_terms:ir.ui.view,arch_db:unified_workspace.view_mail_personal_mailbox_search
+msgid "Archived"
+msgstr ""
+
+#. module: unified_workspace
 #: model:ir.model.fields,field_description:unified_workspace.field_mail_personal_mailbox__message_attachment_count
 msgid "Attachment Count"
 msgstr ""
@@ -165,6 +174,11 @@ msgstr ""
 #. module: unified_workspace
 #: model:ir.model.fields,field_description:unified_workspace.field_res_config_settings__unified_workspace_auto_archive_enabled
 msgid "Auto-archive old emails"
+msgstr ""
+
+#. module: unified_workspace
+#: model:ir.model.fields,field_description:unified_workspace.field_mail_personal_template__placeholder_help
+msgid "Available Placeholders"
 msgstr ""
 
 #. module: unified_workspace
@@ -205,6 +219,11 @@ msgstr ""
 #: model_terms:ir.ui.view,arch_db:unified_workspace.view_mail_personal_mailbox_form
 #: model_terms:ir.ui.view,arch_db:unified_workspace.view_mail_personal_template_form
 msgid "Body"
+msgstr ""
+
+#. module: unified_workspace
+#: model:ir.model.fields,field_description:unified_workspace.field_mail_personal_template__body_text
+msgid "Body Preview"
 msgstr ""
 
 #. module: unified_workspace
@@ -262,7 +281,7 @@ msgstr ""
 #. module: unified_workspace
 #. odoo-javascript
 #: code:addons/unified_workspace/static/src/components/sidebar/sidebar.xml:0
-msgid "Chat"
+msgid "Chattar"
 msgstr ""
 
 #. module: unified_workspace
@@ -274,6 +293,7 @@ msgstr ""
 #. module: unified_workspace
 #. odoo-javascript
 #: code:addons/unified_workspace/static/src/components/attachment_list/attachment_list.xml:0
+#: code:addons/unified_workspace/static/src/components/workspace/workspace.xml:0
 msgid "Close"
 msgstr ""
 
@@ -411,6 +431,20 @@ msgid "Default Template"
 msgstr ""
 
 #. module: unified_workspace
+#. odoo-javascript
+#: code:addons/unified_workspace/static/src/components/group_inbox_panel/group_inbox_panel.xml:0
+msgid "Delade notiser och mentions från Discuss."
+msgstr ""
+
+#. module: unified_workspace
+#. odoo-javascript
+#: code:addons/unified_workspace/static/src/components/reading_pane/reading_pane.xml:0
+#: model:ir.actions.server,name:unified_workspace.action_mail_personal_mailbox_server_move_trash
+#: model_terms:ir.ui.view,arch_db:unified_workspace.view_mail_personal_mailbox_form
+msgid "Delete"
+msgstr ""
+
+#. module: unified_workspace
 #: model_terms:ir.ui.view,arch_db:unified_workspace.res_config_settings_view_form_unified_workspace
 msgid "Delete after"
 msgstr ""
@@ -442,13 +476,17 @@ msgid "Download"
 msgstr ""
 
 #. module: unified_workspace
+#: model:ir.model.fields.selection,name:unified_workspace.selection__mail_personal_mailbox__state__draft
+msgid "Draft"
+msgstr ""
+
+#. module: unified_workspace
 #: model:ir.model.fields,field_description:unified_workspace.field_mail_personal_scheduled_message__draft_id
 msgid "Draft to Delete"
 msgstr ""
 
 #. module: unified_workspace
-#: model:ir.model.fields.selection,name:unified_workspace.selection__mail_personal_folder__folder_type__drafts
-#: model:mail.personal.folder,name:unified_workspace.folder_type_drafts
+#: model_terms:ir.ui.view,arch_db:unified_workspace.view_mail_personal_mailbox_search
 msgid "Drafts"
 msgstr ""
 
@@ -495,6 +533,12 @@ msgstr ""
 #. module: unified_workspace
 #: model:ir.model,name:unified_workspace.model_mail_compose_message
 msgid "Email composition wizard"
+msgstr ""
+
+#. module: unified_workspace
+#. odoo-javascript
+#: code:addons/unified_workspace/static/src/components/email_list/email_list.xml:0
+msgid "Email list"
 msgstr ""
 
 #. module: unified_workspace
@@ -616,8 +660,21 @@ msgid "Group By"
 msgstr ""
 
 #. module: unified_workspace
+#. odoo-javascript
+#: code:addons/unified_workspace/static/src/components/group_inbox_panel/group_inbox_panel.xml:0
+#: code:addons/unified_workspace/static/src/components/sidebar/sidebar.xml:0
+msgid "Group Inbox"
+msgstr ""
+
+#. module: unified_workspace
 #: model:ir.model.fields,field_description:unified_workspace.field_mail_personal_mailbox__has_message
 msgid "Has Message"
+msgstr ""
+
+#. module: unified_workspace
+#. odoo-javascript
+#: code:addons/unified_workspace/static/src/components/composer/composer.xml:0
+msgid "Hide CC/BCC"
 msgstr ""
 
 #. module: unified_workspace
@@ -665,6 +722,8 @@ msgid "Important"
 msgstr ""
 
 #. module: unified_workspace
+#. odoo-javascript
+#: code:addons/unified_workspace/static/src/components/sidebar/sidebar.xml:0
 #: model:ir.model.fields.selection,name:unified_workspace.selection__mail_personal_folder__folder_type__inbox
 #: model:mail.personal.folder,name:unified_workspace.folder_type_inbox
 #: model_terms:ir.ui.view,arch_db:unified_workspace.view_mail_personal_mailbox_search
@@ -678,6 +737,18 @@ msgstr ""
 
 #. module: unified_workspace
 #. odoo-javascript
+#: code:addons/unified_workspace/static/src/components/sidebar/sidebar.xml:0
+msgid "Inga kanaler."
+msgstr ""
+
+#. module: unified_workspace
+#. odoo-javascript
+#: code:addons/unified_workspace/static/src/components/group_inbox_panel/group_inbox_panel.xml:0
+msgid "Inga nya group-inbox-notiser."
+msgstr ""
+
+#. module: unified_workspace
+#. odoo-javascript
 #: code:addons/unified_workspace/static/src/components/composer/composer.xml:0
 msgid "Internal"
 msgstr ""
@@ -685,6 +756,12 @@ msgstr ""
 #. module: unified_workspace
 #: model:ir.model.fields,field_description:unified_workspace.field_mail_personal_mailbox__message_is_follower
 msgid "Is Follower"
+msgstr ""
+
+#. module: unified_workspace
+#. odoo-javascript
+#: code:addons/unified_workspace/static/src/components/workspace/workspace.xml:0
+msgid "Keyboard shortcuts"
 msgstr ""
 
 #. module: unified_workspace
@@ -709,12 +786,6 @@ msgstr ""
 #: model:ir.model.fields,field_description:unified_workspace.field_mail_personal_scheduled_message__write_date
 #: model:ir.model.fields,field_description:unified_workspace.field_mail_personal_template__write_date
 msgid "Last Updated on"
-msgstr ""
-
-#. module: unified_workspace
-#. odoo-python
-#: code:addons/unified_workspace/models/mail_personal_mailbox.py:0
-msgid "Lead for %(email)s moved to %(stage)s"
 msgstr ""
 
 #. module: unified_workspace
@@ -758,6 +829,13 @@ msgstr ""
 #. module: unified_workspace
 #. odoo-javascript
 #: code:addons/unified_workspace/static/src/components/email_list/email_list.xml:0
+msgid "Load more"
+msgstr ""
+
+#. module: unified_workspace
+#. odoo-javascript
+#: code:addons/unified_workspace/static/src/components/email_list/email_list.xml:0
+#: code:addons/unified_workspace/static/src/components/group_inbox_panel/group_inbox_panel.xml:0
 msgid "Loading..."
 msgstr ""
 
@@ -788,12 +866,6 @@ msgstr ""
 #. module: unified_workspace
 #: model:ir.model.fields,field_description:unified_workspace.field_mail_personal_mailbox__timer_duration
 msgid "Logged Time"
-msgstr ""
-
-#. module: unified_workspace
-#. odoo-javascript
-#: code:addons/unified_workspace/static/src/components/sidebar/sidebar.xml:0
-msgid "Mail"
 msgstr ""
 
 #. module: unified_workspace
@@ -831,6 +903,12 @@ msgstr ""
 
 #. module: unified_workspace
 #. odoo-javascript
+#: code:addons/unified_workspace/static/src/components/group_inbox_panel/group_inbox_panel.xml:0
+msgid "Markera som läst"
+msgstr ""
+
+#. module: unified_workspace
+#. odoo-javascript
 #: code:addons/unified_workspace/static/src/components/reading_pane/reading_pane.xml:0
 msgid "Meeting invitation"
 msgstr ""
@@ -858,16 +936,9 @@ msgstr ""
 
 #. module: unified_workspace
 #: model:ir.model.fields,help:unified_workspace.field_res_config_settings__unified_workspace_auto_archive_enabled
-#: model_terms:ir.ui.view,arch_db:unified_workspace.res_config_settings_view_form_unified_workspace
 msgid ""
 "Move personal emails older than the configured threshold to the trash "
 "folder."
-msgstr ""
-
-#. module: unified_workspace
-#: model:ir.actions.server,name:unified_workspace.action_mail_personal_mailbox_server_move_trash
-#: model_terms:ir.ui.view,arch_db:unified_workspace.view_mail_personal_mailbox_form
-msgid "Move to Trash"
 msgstr ""
 
 #. module: unified_workspace
@@ -931,6 +1002,12 @@ msgid "No events today."
 msgstr ""
 
 #. module: unified_workspace
+#. odoo-python
+#: code:addons/unified_workspace/models/mail_compose_message.py:0
+msgid "No recipient found."
+msgstr ""
+
+#. module: unified_workspace
 #. odoo-javascript
 #: code:addons/unified_workspace/static/src/components/record_picker/record_picker.xml:0
 msgid "No records found."
@@ -965,6 +1042,12 @@ msgstr ""
 #. module: unified_workspace
 #. odoo-python
 #: code:addons/unified_workspace/models/mail_personal_mailbox.py:0
+msgid "On %(date)s, %(sender)s wrote:"
+msgstr ""
+
+#. module: unified_workspace
+#. odoo-python
+#: code:addons/unified_workspace/models/mail_personal_mailbox.py:0
 msgid "Only emails marked as important can be saved to Knowledge."
 msgstr ""
 
@@ -972,6 +1055,12 @@ msgstr ""
 #. odoo-javascript
 #: code:addons/unified_workspace/static/src/components/contact_card/contact_card.xml:0
 msgid "Open Tasks"
+msgstr ""
+
+#. module: unified_workspace
+#. odoo-python
+#: code:addons/unified_workspace/models/mail_personal_mailbox.py:0
+msgid "Other participants:"
 msgstr ""
 
 #. module: unified_workspace
@@ -1055,13 +1144,20 @@ msgid "Personal IMAP Server"
 msgstr ""
 
 #. module: unified_workspace
-#: model:ir.model,name:unified_workspace.model_mail_personal_mail_merge
-msgid "Personal Mail Merge"
+#. odoo-javascript
+#: code:addons/unified_workspace/static/src/components/sidebar/sidebar.xml:0
+msgid "Personal Inbox"
 msgstr ""
 
 #. module: unified_workspace
-#: model:ir.ui.menu,name:unified_workspace.menu_fetchmail_server_personal
-msgid "Personal Mail Servers"
+#. odoo-javascript
+#: code:addons/unified_workspace/static/src/components/sidebar/sidebar.xml:0
+msgid "Personal Mail"
+msgstr ""
+
+#. module: unified_workspace
+#: model:ir.model,name:unified_workspace.model_mail_personal_mail_merge
+msgid "Personal Mail Merge"
 msgstr ""
 
 #. module: unified_workspace
@@ -1149,6 +1245,36 @@ msgstr ""
 #: model:ir.model.fields.selection,name:unified_workspace.selection__mail_personal_mailbox__state__read
 #: model_terms:ir.ui.view,arch_db:unified_workspace.view_mail_personal_mailbox_search
 msgid "Read"
+msgstr ""
+
+#. module: unified_workspace
+#. odoo-python
+#: code:addons/unified_workspace/models/mail_personal_template.py:0
+msgid "Recipient city"
+msgstr ""
+
+#. module: unified_workspace
+#. odoo-python
+#: code:addons/unified_workspace/models/mail_personal_template.py:0
+msgid "Recipient company"
+msgstr ""
+
+#. module: unified_workspace
+#. odoo-python
+#: code:addons/unified_workspace/models/mail_personal_template.py:0
+msgid "Recipient email"
+msgstr ""
+
+#. module: unified_workspace
+#. odoo-python
+#: code:addons/unified_workspace/models/mail_personal_template.py:0
+msgid "Recipient name"
+msgstr ""
+
+#. module: unified_workspace
+#. odoo-python
+#: code:addons/unified_workspace/models/mail_personal_template.py:0
+msgid "Recipient phone"
 msgstr ""
 
 #. module: unified_workspace
@@ -1279,7 +1405,19 @@ msgstr ""
 #. module: unified_workspace
 #. odoo-javascript
 #: code:addons/unified_workspace/static/src/components/email_list/email_list.xml:0
+msgid "Search mail"
+msgstr ""
+
+#. module: unified_workspace
+#. odoo-javascript
+#: code:addons/unified_workspace/static/src/components/email_list/email_list.xml:0
 msgid "Search mail..."
+msgstr ""
+
+#. module: unified_workspace
+#. odoo-javascript
+#: code:addons/unified_workspace/static/src/components/email_tags/email_tags.xml:0
+msgid "Searching..."
 msgstr ""
 
 #. module: unified_workspace
@@ -1330,10 +1468,7 @@ msgid "Sender Partner"
 msgstr ""
 
 #. module: unified_workspace
-#: model:ir.model.fields.selection,name:unified_workspace.selection__mail_personal_folder__folder_type__sent
 #: model:ir.model.fields.selection,name:unified_workspace.selection__mail_personal_scheduled_message__state__sent
-#: model:mail.personal.folder,name:unified_workspace.folder_type_sent
-#: model_terms:ir.ui.view,arch_db:unified_workspace.view_mail_personal_mailbox_search
 msgid "Sent"
 msgstr ""
 
@@ -1343,8 +1478,9 @@ msgid "Sequence"
 msgstr ""
 
 #. module: unified_workspace
-#: model:ir.ui.menu,name:unified_workspace.menu_unified_workspace_settings
-msgid "Settings"
+#. odoo-javascript
+#: code:addons/unified_workspace/static/src/components/composer/composer.xml:0
+msgid "Show CC/BCC"
 msgstr ""
 
 #. module: unified_workspace
@@ -1475,6 +1611,11 @@ msgid "The personal mailbox message this composer is linked to."
 msgstr ""
 
 #. module: unified_workspace
+#: model_terms:ir.ui.view,arch_db:unified_workspace.view_mail_personal_mailbox_form
+msgid "This will permanently delete the email."
+msgstr ""
+
+#. module: unified_workspace
 #. odoo-javascript
 #: code:addons/unified_workspace/static/src/components/thread_panel/thread_panel.xml:0
 #: model_terms:ir.ui.view,arch_db:unified_workspace.view_mail_personal_mailbox_form
@@ -1513,6 +1654,12 @@ msgid "Today's Agenda"
 msgstr ""
 
 #. module: unified_workspace
+#. odoo-python
+#: code:addons/unified_workspace/models/mail_personal_template.py:0
+msgid "Today's date"
+msgstr ""
+
+#. module: unified_workspace
 #. odoo-javascript
 #: code:addons/unified_workspace/static/src/components/composer/composer.xml:0
 msgid "Toggle Dropdown"
@@ -1527,15 +1674,6 @@ msgstr ""
 #. odoo-javascript
 #: code:addons/unified_workspace/static/src/components/email_list/email_list.xml:0
 msgid "Toggle important"
-msgstr ""
-
-#. module: unified_workspace
-#. odoo-javascript
-#: code:addons/unified_workspace/static/src/components/reading_pane/reading_pane.xml:0
-#: model:ir.model.fields.selection,name:unified_workspace.selection__mail_personal_folder__folder_type__trash
-#: model:mail.personal.folder,name:unified_workspace.folder_type_trash
-#: model_terms:ir.ui.view,arch_db:unified_workspace.view_mail_personal_mailbox_search
-msgid "Trash"
 msgstr ""
 
 #. module: unified_workspace
@@ -1594,6 +1732,13 @@ msgid "Use the external signature when recipients are outside the company."
 msgstr ""
 
 #. module: unified_workspace
+#: model_terms:ir.ui.view,arch_db:unified_workspace.view_mail_personal_template_form
+msgid ""
+"Use these placeholders in the subject and body. They are filled in when the "
+"template is applied in the composer."
+msgstr ""
+
+#. module: unified_workspace
 #: model:ir.model,name:unified_workspace.model_res_users
 #: model:ir.model.fields,field_description:unified_workspace.field_mail_personal_folder__user_id
 #: model:ir.model.fields,field_description:unified_workspace.field_mail_personal_mailbox__user_id
@@ -1619,6 +1764,12 @@ msgstr ""
 #: code:addons/unified_workspace/static/src/components/reading_pane/reading_pane.xml:0
 #: model_terms:ir.ui.view,arch_db:unified_workspace.view_mail_personal_mailbox_form
 msgid "View Contact"
+msgstr ""
+
+#. module: unified_workspace
+#. odoo-javascript
+#: code:addons/unified_workspace/static/src/components/group_inbox_panel/group_inbox_panel.xml:0
+msgid "Välj en notis för att läsa innehållet."
 msgstr ""
 
 #. module: unified_workspace
@@ -1663,8 +1814,32 @@ msgid "You cannot create recursive folder structures."
 msgstr ""
 
 #. module: unified_workspace
+#. odoo-python
+#: code:addons/unified_workspace/models/mail_personal_template.py:0
+msgid "Your company"
+msgstr ""
+
+#. module: unified_workspace
+#. odoo-python
+#: code:addons/unified_workspace/models/mail_personal_template.py:0
+msgid "Your email"
+msgstr ""
+
+#. module: unified_workspace
+#. odoo-python
+#: code:addons/unified_workspace/models/mail_personal_template.py:0
+msgid "Your name"
+msgstr ""
+
+#. module: unified_workspace
 #: model_terms:ir.actions.act_window,help:unified_workspace.action_mail_personal_mailbox
 msgid "Your personal inbox is empty"
+msgstr ""
+
+#. module: unified_workspace
+#. odoo-python
+#: code:addons/unified_workspace/models/mail_personal_template.py:0
+msgid "Your phone"
 msgstr ""
 
 #. module: unified_workspace
@@ -1679,4 +1854,10 @@ msgstr ""
 msgid ""
 "does not match an existing contact.\n"
 "                Create the contact below before sending."
+msgstr ""
+
+#. module: unified_workspace
+#. odoo-javascript
+#: code:addons/unified_workspace/static/src/components/group_inbox_panel/group_inbox_panel.xml:0
+msgid "Öppna post"
 msgstr ""

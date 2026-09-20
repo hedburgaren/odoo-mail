@@ -163,7 +163,8 @@ All components are OWL and registered under `web.assets_backend`.
   template selector and draft save/open. Applying a template calls
   `action_use_template` server-side so placeholders resolve against the first
   recipient. Reply/forward prefills recipients and quoted body and links the
-  sent copy to the parent message.
+  composer to the original message via `personal_mailbox_id`, which is marked
+  `replied`/`forwarded` at send time.
 - `email_tags`: token input for email addresses.
 - `attachment_uploader` / `attachment_list`: drag-and-drop upload, preview,
   download and save-to-record of `ir.attachment` records.
@@ -203,8 +204,27 @@ Python tests in `tests/`:
 - `test_mail_personal_mailbox`: folders, message linking, CRM lead creation,
   calendar invitation parsing, RSVP actions, templates, thread navigation,
   activity scheduling, saving attachments to a linked record, draft save/update,
-  reply body quoting, parent linking on sent replies, timer start/stop and
-  logging time to a linked project task.
+  reply body quoting, timer start/stop and logging time to a linked project
+  task.
+- `test_mail_personal_mail_merge`: token rendering and the send loop of the
+  mail merge wizard.
+
+Composer, attachment and calendar coverage is explicit:
+
+- Composer: a send without recipients raises `UserError`; `_ensure_signature()`
+  inserts the signature once, above the `uw_quote` marker, and appends it when
+  no quote exists; `_save_sent_copy()` performs bookkeeping only and never
+  creates an inbox copy (see the 2026-09-07 decision above); replies and
+  forwards mark the original `replied`/`forwarded`.
+- Attachments: saving to a linked lead, a linked project task and the sender
+  partner; the record-required guard; DMS and Knowledge storage.
+- Calendar: parsing and RSVP, a missing attachment or a non-calendar
+  attachment returns `False`, malformed `.ics` data is swallowed with a
+  warning, a `VEVENT` without `DTSTART` is skipped, a late or missing `DTEND`
+  falls back to one hour, the same `UID` updates the existing event instead of
+  creating a second one, and the write hook parses only once per message.
+
+The suite is green as of 2026-09-20: 64 tests, 0 failed, 0 errors.
 
 Run with:
 

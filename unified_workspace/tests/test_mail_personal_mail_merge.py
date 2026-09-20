@@ -59,14 +59,14 @@ class TestMailPersonalMailMerge(TransactionCase):
         rendered = wizard._render_html("<p>Hello {{name}}</p>", partner)
         self.assertIn("Hello Eve &lt;evil&gt;", rendered)
 
-    def test_action_send_creates_sent_copies(self):
+    def test_action_send_creates_no_inbox_copies(self):
+        # Beslut 2026-09-07: utgaende mail kopieras inte in i Odoo-inkorgen.
         inbox = self.env["mail.personal.folder"]._get_system_folder(
             self.env.user, "inbox"
         )
         before = self.env["mail.personal.mailbox"].search_count([
             ("folder_id", "=", inbox.id),
             ("user_id", "=", self.env.user.id),
-            ("state", "=", "read"),
         ])
         wizard = self._create_wizard(
             self.partner_a + self.partner_b,
@@ -77,9 +77,8 @@ class TestMailPersonalMailMerge(TransactionCase):
         after = self.env["mail.personal.mailbox"].search_count([
             ("folder_id", "=", inbox.id),
             ("user_id", "=", self.env.user.id),
-            ("state", "=", "read"),
         ])
-        self.assertEqual(after - before, 2)
+        self.assertEqual(after, before)
         self.assertEqual(action["type"], "ir.actions.client")
         self.assertIn("2 email(s) sent", action["params"]["message"])
 
@@ -90,7 +89,6 @@ class TestMailPersonalMailMerge(TransactionCase):
         before = self.env["mail.personal.mailbox"].search_count([
             ("folder_id", "=", inbox.id),
             ("user_id", "=", self.env.user.id),
-            ("state", "=", "read"),
         ])
         wizard = self._create_wizard(
             self.partner_a + self.partner_no_email,
@@ -101,9 +99,8 @@ class TestMailPersonalMailMerge(TransactionCase):
         after = self.env["mail.personal.mailbox"].search_count([
             ("folder_id", "=", inbox.id),
             ("user_id", "=", self.env.user.id),
-            ("state", "=", "read"),
         ])
-        self.assertEqual(after - before, 1)
+        self.assertEqual(after, before)
         self.assertIn("1 contact(s) skipped", action["params"]["message"])
 
     def test_default_get_from_active_ids(self):
