@@ -249,6 +249,51 @@ class TestMailPersonalMailbox(TransactionCase):
         self.assertFalse(template.is_default)
         self.assertTrue(other.is_default)
 
+    def test_personal_template_placeholders(self):
+        recipient = self.env["res.partner"].create({
+            "name": "Anna & Andersson",
+            "company_name": "Andersson AB",
+            "email": "anna@example.com",
+            "phone": "+46 13 123 456",
+            "city": "Linköping",
+        })
+        template = self.env["mail.personal.template"].create({
+            "name": "Greeting",
+            "subject": "Hej {{ partner.name }}",
+            "body": (
+                "<p>{{ partner.name }} på {{ partner.company_name }}</p>"
+                "<p>{{ recipient.email }}</p>"
+                "<p>{{ user.name }}</p>"
+                "<p>{{ missing.field }}</p>"
+            ),
+            "user_id": self.user.id,
+        })
+        data = template.action_use_template(recipient.id)
+        self.assertEqual(data["subject"], "Hej Anna & Andersson")
+        self.assertIn("Anna &amp; Andersson", data["body"])
+        self.assertIn("Andersson AB", data["body"])
+        self.assertIn("anna@example.com", data["body"])
+        self.assertIn(self.env.user.name, data["body"])
+        # Unknown placeholders survive so a half-finished template stays visible.
+        self.assertIn("{{ missing.field }}", data["body"])
+
+    def test_personal_template_without_partner(self):
+        template = self.env["mail.personal.template"].create({
+            "name": "No partner",
+            "subject": "Rapport {{ date }}",
+            "body": "<p>{{ partner.name }} / {{ user.email }}</p>",
+            "user_id": self.user.id,
+        })
+        data = template.action_use_template()
+        self.assertNotIn("{{ date }}", data["subject"])
+        self.assertNotIn("{{ partner.name }}", data["body"])
+        self.assertNotIn("{{ user.email }}", data["body"])
+
+    def test_personal_template_placeholder_fields_exposed(self):
+        fields = self.env["mail.personal.template"].get_placeholder_fields()
+        self.assertIn("partner.name", fields)
+        self.assertIn("user.name", fields)
+
     def test_thread_navigation(self):
         parent = self.env["mail.personal.mailbox"].create({
             "user_id": self.user.id,

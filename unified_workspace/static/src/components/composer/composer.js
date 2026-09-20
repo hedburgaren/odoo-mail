@@ -70,34 +70,62 @@ export class Composer extends Component {
     }
 
     async _loadTemplates() {
+        // All templates the user can see (own plus shared), the default first.
         const templates = await this.orm.searchRead(
             "mail.personal.template",
-            [["is_default", "=", true]],
-            ["id", "name", "subject", "body"]
+            [],
+            ["id", "name", "subject", "body", "is_default"],
+            { order: "is_default DESC, name" }
         );
         this.state.templates = templates;
         if (templates.length && !this.props.defaultSubject && !this.props.defaultBody) {
-            this._applyTemplate(templates[0]);
+            await this._applyTemplate(templates[0]);
         }
     }
 
-    _applyTemplate(template) {
+    async _applyTemplate(template) {
         if (!template) {
             return;
         }
         this.state.selectedTemplateId = template.id;
-        this.state.subject = template.subject || this.state.subject;
-        this.state.body = template.body || this.state.body;
+        // Placeholders resolve server-side against the first recipient so the
+        // whitelist stays in one place and the partner data is never trusted
+        // raw in the browser.
+        const partnerId = await this._resolveRecipientPartnerId();
+        const data = await this.orm.call(
+            "mail.personal.template",
+            "action_use_template",
+            [[template.id]],
+            { partner_id: partnerId || false }
+        );
+        this.state.subject = data.subject || this.state.subject;
+        this.state.body = data.body || this.state.body;
         if (this.editor) {
             this.editor.setContent(this.state.body);
         }
     }
 
-    onSelectTemplate(ev) {
+    async _resolveRecipientPartnerId() {
+        const email = (this.state.to || [])
+            .map((e) => e.trim().toLowerCase())
+            .find(Boolean);
+        if (!email) {
+            return false;
+        }
+        const partners = await this.orm.searchRead(
+            "res.partner",
+            [["email", "=ilike", email]],
+            ["id"],
+            { limit: 1 }
+        );
+        return partners.length ? partners[0].id : false;
+    }
+
+    async onSelectTemplate(ev) {
         const templateId = parseInt(ev.target.value, 10);
         const template = this.state.templates.find((t) => t.id === templateId);
         if (template) {
-            this._applyTemplate(template);
+            await this._applyTemplate(template);
         }
     }
 

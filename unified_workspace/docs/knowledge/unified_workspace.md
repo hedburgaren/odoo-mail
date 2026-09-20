@@ -64,8 +64,23 @@ Thread, draft, activity and timer methods:
 ### `mail.personal.template`
 
 Reusable email templates per user or shared (`user_id` empty). The default
-flag (`is_default`) is unique per user/shared scope. `action_use_template()`
-returns subject and body for the composer.
+flag (`is_default`) is unique per user/shared scope.
+
+Subject and body may contain placeholders written as `{{ namespace.field }}`.
+They are resolved by `_render_placeholders()` against a fixed whitelist
+(`PLACEHOLDER_FIELDS`): `partner.*` (recipient name, company, email, phone,
+city), `user.*` (your name, email, phone, company) and `date`. The aliases in
+`PLACEHOLDER_ALIASES` (`recipient.*`, `company.name`) resolve to the same
+values. Anything outside the whitelist is left untouched, so a half-finished
+template stays visible instead of losing text, and substituted values are
+HTML-escaped in the body so a partner name cannot break the markup.
+`get_placeholder_fields()` exposes the names and labels to the UI, and the
+template form shows them as help text.
+
+`action_use_template(partner_id=None)` renders the placeholders against the
+given recipient and returns the subject and body for the composer. Without a
+partner the partner placeholders render as empty strings while user and date
+placeholders still resolve.
 
 ### `res.users`
 
@@ -111,8 +126,10 @@ All components are OWL and registered under `web.assets_backend`.
   when the email is linked to a `project.task`.
 - `composer`: tokenized To/CC/BCC (`EmailTags`), HTML editor (`Wysiwyg`),
   drag-and-drop attachments (`AttachmentUploader`), signature selector,
-  template selector and draft save/open. Reply/forward prefills recipients
-  and quoted body and links the sent copy to the parent message.
+  template selector and draft save/open. Applying a template calls
+  `action_use_template` server-side so placeholders resolve against the first
+  recipient. Reply/forward prefills recipients and quoted body and links the
+  sent copy to the parent message.
 - `email_tags`: token input for email addresses.
 - `attachment_uploader` / `attachment_list`: drag-and-drop upload, preview,
   download and save-to-record of `ir.attachment` records.

@@ -28,6 +28,10 @@
                     </group>
                     <label for="body" string="Body"/>
                     <field name="body" nolabel="1" widget="html"/>
+                    <div class="alert alert-info mt-2" role="alert">
+                        <p class="mb-1">Use these placeholders in the subject and body. They are filled in when the template is applied in the composer.</p>
+                        <field name="placeholder_help" nolabel="1" readonly="1"/>
+                    </div>
                 </sheet>
             </form>
         </field>
