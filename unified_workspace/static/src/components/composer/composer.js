@@ -12,9 +12,12 @@ import { ScheduleSender } from "@unified_workspace/components/schedule_sender/sc
 /**
  * Composer component for personal emails.
  *
- * Provides tokenized To/CC/BCC fields, an HTML editor and signature handling.
- * Uses the standard mail.compose.message transient model so that sent copies
- * are saved to the personal Inbox as read via the overridden _action_send_mail.
+ * Provides tokenized To/CC/BCC fields, an HTML editor and a signature
+ * selector. Uses the standard mail.compose.message transient model, whose
+ * overridden _action_send_mail sends the email, inserts the signature and
+ * marks the original message replied or forwarded. No copy is saved to the
+ * personal Inbox: Gmail keeps the outgoing mail in its own Sent folder
+ * (Chrille 2026-09-07).
  */
 export class Composer extends Component {
     static template = "unified_workspace.Composer";
@@ -43,7 +46,7 @@ export class Composer extends Component {
             bcc: this.props.defaultBcc || [],
             subject: this.props.defaultSubject || "",
             body: this.props.defaultBody || "",
-            signatureType: "internal",
+            signatureType: "auto",
             attachments: this.props.attachments || [],
             draftId: this.props.draftId || null,
             templates: [],
@@ -206,7 +209,6 @@ export class Composer extends Component {
     }
 
     async onSend() {
-        console.log("[Composer] onSend clicked");
         if (this.state.isSending) {
             return;
         }
@@ -230,19 +232,14 @@ export class Composer extends Component {
     }
 
     async _doSend(options = {}) {
-        console.log("[Composer] _doSend start");
         this.state.isSending = true;
         try {
             const composerValues = await this._buildComposerValues(options);
-            console.log("[Composer] composerValues", composerValues);
             if (!composerValues) {
-                console.log("[Composer] _doSend aborted: no composerValues");
                 return;
             }
             const composerId = await this._createComposer(composerValues);
-            console.log("[Composer] created composer id", composerId);
             await this.orm.call("mail.compose.message", "action_send_mail", [[composerId]]);
-            console.log("[Composer] action_send_mail returned");
             await this._cleanupAfterSend();
             this.notification.add("Email sent.", { type: "success" });
             this._close();
@@ -320,9 +317,7 @@ export class Composer extends Component {
             ...this.state.cc,
             ...this.state.bcc,
         ])];
-        console.log("[Composer] resolving partners for", allEmails);
         const emailToPartner = await this._resolveAllPartners(allEmails);
-        console.log("[Composer] emailToPartner", emailToPartner);
         if (!emailToPartner) {
             return null;
         }
@@ -346,6 +341,7 @@ export class Composer extends Component {
             partner_ids: [[6, 0, allPartnerIds]],
             email_cc: this.state.cc.join(", "),
             email_bcc: this.state.bcc.join(", "),
+            signature_type: this.state.signatureType || "auto",
         };
         // The original message, not the draft, is the parent: sending a saved
         // draft reply must mark the original replied and link the sent copy to
@@ -397,38 +393,26 @@ export class Composer extends Component {
         });
     }
 
-    async _getSignature() {
-        const uid = this.env.services["mail.store"]?.self?.userId;
-        if (!uid) {
-            return "";
-        }
-        const users = await this.orm.searchRead(
-            "res.users",
-            [["id", "=", uid]],
-            ["email_signature", "email_signature_external", "use_external_signature"]
-        );
-        if (!users.length) {
-            return "";
-        }
-        const user = users[0];
-        if (this.state.signatureType === "external") {
-            return user.email_signature_external || user.email_signature || user.signature || "";
-        }
-        return user.email_signature || user.signature || "";
-    }
-
     async _resolveAllPartners(emails) {
         const uniqueEmails = [...new Set(emails.map((e) => e.trim().toLowerCase()).filter(Boolean))];
         const emailToPartner = {};
         const unknownEmails = [];
         for (const email of uniqueEmails) {
+            // "_" och "%" är jokertecken i =ilike: utan escaping matchade
+            // a_b@x.se även axb@x.se och fel kontakt blev mottagare
+            // (granskning 2026-09-20). Träffen jämförs dessutom exakt
+            // efteråt, så ett kvarvarande jokertecken inte kan slinka med.
+            const pattern = email.replace(/([\\%_])/g, "\\$1");
             const partners = await this.orm.searchRead(
                 "res.partner",
-                [["email_normalized", "=", email]],
-                ["id"]
+                [["email", "=ilike", pattern]],
+                ["id", "email"]
             );
-            if (partners.length) {
-                emailToPartner[email] = partners[0].id;
+            const exact = partners.find(
+                (p) => (p.email || "").trim().toLowerCase() === email
+            );
+            if (exact) {
+                emailToPartner[email] = exact.id;
             } else {
                 unknownEmails.push(email);
             }
@@ -448,7 +432,6 @@ export class Composer extends Component {
     }
 
     _createContactFromEmail(email) {
-        console.log("[Composer] opening ContactCreator for", email);
         return new Promise((resolve) => {
             this.env.services.dialog.add(ContactCreator, { email, onCreate: resolve }, {
                 title: "Create Contact",

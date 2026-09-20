@@ -66,7 +66,13 @@ Thread, draft, activity and timer methods:
   Drafts folder; drafts are found through the Drafts quick filter and reopened
   via the composer's `draftId` prop.
 - `action_get_reply_body()` returns the standard quoted reply body for a
-  message.
+  message. `action_get_forward_body()` returns the forward variant with a
+  "Forwarded message" header and the original body quoted.
+- `action_reply_all()` resolves every address in `From`/`To`/`CC` to partners
+  so a reply-all reaches the original recipients, not only the sender.
+- `action_move_to_stage(stage_id)` creates a `crm.lead` from the email when
+  none is linked, then moves it to the given `crm.stage`. Used by the
+  draggable CRM pipeline overlay.
 - `action_log_activity()` opens the standard `mail.activity.schedule` wizard
   prefilled with the email subject and body.
 - `action_save_attachments_to_record()` copies the email attachments to the
@@ -137,6 +143,14 @@ What remains is the state transition on the original message
 `crm.lead`/`project.task`/`res.partner`. The composer calls the public
 `action_send_mail` method and passes To/CC/BCC partners and attachments.
 
+BCC is delivered as one separate `mail.mail` per hidden recipient. Odoo 18 CE
+has no `email_bcc` on `mail.mail`, and `email_cc` really is delivered to, so a
+single mail would either drop BCC silently or expose the hidden recipients to
+each other. The BCC copy carries neither To nor CC addresses.
+
+`signature_type` is `auto` by default, which picks the internal or external
+signature from the recipients; `internal` and `external` force the choice.
+
 ## Security
 
 - `mail.personal.folder`: users see only their own folders.
@@ -171,18 +185,24 @@ All components are OWL and registered under `web.assets_backend`.
 - `thread_panel`: conversation thread list inside the reading pane.
 - `calendar_panel`: embedded calendar view for today's agenda and event
   creation.
-- `calendar_view`: placeholder view for future agenda widgets.
+- `calendar_view`: today's agenda widget, opened as the `agenda` panel from
+  the sidebar.
+- `pipeline_overlay`: draggable CRM pipeline overlay, rendered as the
+  `pipeline` panel next to the email list so messages stay draggable. Each
+  column is a `crm.stage`; dropping an email on a column calls
+  `action_move_to_stage()`.
 - `contact_card`: sender partner card with recent pipeline and open tasks.
 
 ### Services
 
 - `mailbox`: reactive state, folder/message loading, search, filters and RPC
   wrappers for actions including calendar RSVP. It supports an "All folders"
-  view and quick filters for unread, starred and with-attachments. It extends
-  Odoo's `Reactive` class and is consumed by components via
+  view and quick filters for unread, starred, with-attachments, important and
+  drafts. It extends Odoo's `Reactive` class and is consumed by components via
   `useState(useService("mailbox"))` so the UI updates when messages or folders
   change. After an RSVP action the service patches the local message state
-  before reloading.
+  before reloading. It also exposes `openAgenda()` for the daily agenda panel,
+  `openPipelineOverlay()` and `moveToStage()` for the CRM pipeline overlay.
 
 ### Keyboard shortcuts
 

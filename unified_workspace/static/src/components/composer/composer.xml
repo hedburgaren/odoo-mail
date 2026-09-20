@@ -57,6 +57,7 @@
                 <div class="mb-2">
                     <label class="form-label">Signature</label>
                     <select class="form-select" t-model="state.signatureType">
+                        <option value="auto">Automatic</option>
                         <option value="internal">Internal</option>
                         <option value="external">External</option>
                     </select>

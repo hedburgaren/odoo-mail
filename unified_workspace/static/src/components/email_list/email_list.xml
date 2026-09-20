@@ -10,30 +10,36 @@
                     aria-label="Search mail"
                     t-att-value="mailbox.searchQuery"
                     t-on-input="onSearchInput"/>
-                <div class="d-flex gap-1">
+                <div class="o-unified-email-filters d-flex flex-wrap gap-1">
                     <button
                         class="btn btn-xs btn-outline-secondary"
                         t-att-class="{ 'active': mailbox.filters.unread }"
-                        t-on-click="() => onToggleFilter('unread')">
+                        t-on-click="() => this.onToggleFilter('unread')">
                         Unread
                     </button>
                     <button
                         class="btn btn-xs btn-outline-secondary"
                         t-att-class="{ 'active': mailbox.filters.starred }"
-                        t-on-click="() => onToggleFilter('starred')">
+                        t-on-click="() => this.onToggleFilter('starred')">
                         Starred
                     </button>
                     <button
                         class="btn btn-xs btn-outline-secondary"
                         t-att-class="{ 'active': mailbox.filters.attachments }"
-                        t-on-click="() => onToggleFilter('attachments')">
+                        t-on-click="() => this.onToggleFilter('attachments')">
                         Attachments
                     </button>
                     <button
                         class="btn btn-xs btn-outline-secondary"
                         t-att-class="{ 'active': mailbox.filters.important }"
-                        t-on-click="() => onToggleFilter('important')">
+                        t-on-click="() => this.onToggleFilter('important')">
                         Important
+                    </button>
+                    <button
+                        class="btn btn-xs btn-outline-secondary"
+                        t-att-class="{ 'active': mailbox.filters.drafts }"
+                        t-on-click="() => this.onToggleFilter('drafts')">
+                        Drafts
                     </button>
                 </div>
             </div>

@@ -23,11 +23,17 @@ class MailComposeMessage(models.TransientModel):
     )
     email_cc = fields.Char(string="CC")
     email_bcc = fields.Char(string="BCC")
+    signature_type = fields.Selection(
+        [("auto", "Automatic"), ("internal", "Internal"), ("external", "External")],
+        string="Signature",
+        default="auto",
+        help="Which personal signature to append. Automatic picks it from the recipients.",
+    )
     log_to_model = fields.Char(string="Log To Model")
     log_to_res_id = fields.Integer(string="Log To Record")
 
     def _action_send_mail(self, auto_commit=False):
-        """After sending, save a copy to the sender's personal Sent folder."""
+        """After sending, run the personal post-send bookkeeping."""
         personal = self.filtered(lambda c: c.composition_mode == "personal_email")
         for composer in personal:
             composer._action_send_personal_email()
@@ -42,23 +48,54 @@ class MailComposeMessage(models.TransientModel):
         return self.env["mail.mail"].sudo(), self.env["mail.message"]
 
     def _action_send_personal_email(self):
-        """Send a personal email directly through mail.mail."""
+        """Send a personal email directly through mail.mail.
+
+        BCC skickas som separata mail.mail, ett per dold mottagare. Odoo 18
+        CE har inget email_bcc på mail.mail, och email_cc levereras på riktigt
+        till adresserna. Ett gemensamt mail skulle därför antingen tappa BCC
+        helt (tyst bortfall, granskning 2026-09-20) eller röja de dolda
+        mottagarna för varandra. Kopian bär varken To- eller CC-adresser, så
+        mottagaren ser inte de övriga.
+
+        Sista platshållarrenderingen sker här: composern kan ha öppnats innan
+        mottagaren fanns, och då ligger {{ partner.name }} kvar i texten. Inget
+        {{ ... }} ur vitlistan får gå ut till kund, så det här passet avgör.
+        """
         self.ensure_one()
         cc_emails = [e.strip().lower() for e in (self.email_cc or "").split(",") if e.strip()]
         bcc_emails = [e.strip().lower() for e in (self.email_bcc or "").split(",") if e.strip()]
         to_partners = self.partner_ids.filtered(
             lambda p: p.email and p.email.lower() not in cc_emails and p.email.lower() not in bcc_emails
         )
-        if not to_partners and not cc_emails:
+        bcc_partners = self.partner_ids.filtered(
+            lambda p: p.email and p.email.lower() in bcc_emails
+        )
+        resolved_bcc = {p.email.lower() for p in bcc_partners}
+        loose_bcc = [e for e in bcc_emails if e not in resolved_bcc]
+        if not to_partners and not cc_emails and not bcc_emails:
             raise UserError(_("No recipient found."))
-        # Sista platshållarrenderingen sker här. Composern kan ha öppnats innan
-        # mottagaren fanns, och då ligger {{ partner.name }} kvar i texten.
-        # Inget {{ ... }} ur vitlistan får gå ut till kund, så det här passet
-        # är det som avgör, oavsett vad klienten hann rendera.
         subject, body = self._render_personal_placeholders(to_partners)
         body = self._ensure_signature(body)
-        mail_values = {
-            "subject": subject or _("(No subject)"),
+        mails = self.env["mail.mail"].sudo()
+        if to_partners or cc_emails:
+            mails |= self.env["mail.mail"].sudo().create(self._personal_mail_values(
+                body, subject=subject, recipients=to_partners, email_cc=self.email_cc or ""
+            ))
+        for partner in bcc_partners:
+            mails |= self.env["mail.mail"].sudo().create(
+                self._personal_mail_values(body, subject=subject, recipients=partner)
+            )
+        for email in loose_bcc:
+            mails |= self.env["mail.mail"].sudo().create(
+                self._personal_mail_values(body, subject=subject, email_to=email)
+            )
+        mails.send(raise_exception=True)
+
+    def _personal_mail_values(self, body, subject=None, recipients=None, email_cc="", email_to=""):
+        """Build mail.mail values for one outgoing personal email."""
+        self.ensure_one()
+        values = {
+            "subject": subject or self.subject or _("(No subject)"),
             "body_html": body,
             "email_from": self.email_from or self.env.user.email_formatted,
             # Utan explicit reply_to satte Odoo catchall@<domän> som Reply-To.
@@ -66,13 +103,14 @@ class MailComposeMessage(models.TransientModel):
             # (auto_delete raderar vårt Message-ID) och bouncades: Oscar fick
             # 24 studsar på ett svar (2026-09-07). Svar ska gå till avsändaren.
             "reply_to": self.email_from or self.env.user.email_formatted,
-            "recipient_ids": [(6, 0, to_partners.ids)],
-            "email_cc": self.email_cc or "",
+            "recipient_ids": [(6, 0, recipients.ids if recipients else [])],
+            "email_cc": email_cc,
             "attachment_ids": [(6, 0, self.attachment_ids.ids)],
             "auto_delete": True,
         }
-        mail = self.env["mail.mail"].sudo().create(mail_values)
-        mail.send(raise_exception=True)
+        if email_to:
+            values["email_to"] = email_to
+        return values
 
     def _render_personal_placeholders(self, to_partners):
         """Render any template placeholders left in subject and body.
@@ -104,7 +142,9 @@ class MailComposeMessage(models.TransientModel):
         # str-koercering: body är Markup (Html-fält) och Markup + str
         # HTML-escapar inskottet ('<br/>' blev '&lt;br/&gt;' i test).
         body = str(body)
-        signature = str(self.env.user._get_personal_signature(self.partner_ids) or "")
+        signature = str(self.env.user._get_personal_signature(
+            self.partner_ids, self.signature_type or "auto"
+        ) or "")
         if not signature or signature in body:
             return body
         # Header-raden först: användartext kan ligga INUTI uw_quote-diven
@@ -121,8 +161,9 @@ class MailComposeMessage(models.TransientModel):
         """Post-send bookkeeping for a personal email.
 
         Ingen inkorgskopia längre: blandad in- och utkorg var rörigt och
-        Gmail sparar utgående i sin Sent-katalog (Chrille 2026-09-07).
-        Kvar: statusflytt på originalet och loggning till valt record.
+        Gmail sparar utgående i sin Sent-katalog (Chrille 2026-09-07,
+        commit c8714d8). Kvar: statusflytt på originalet och loggning
+        till valt record.
         """
         self.ensure_one()
         # Link the original message if it was a reply/forward.

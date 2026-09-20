@@ -12,7 +12,7 @@
                 <t t-foreach="props.attachments" t-as="att" t-key="att.id">
                     <div class="card" style="width: 180px;">
                         <div class="card-body p-2">
-                            <div t-if="isImage(att)" class="mb-2 text-center" style="cursor: pointer;" t-on-click="() => onOpenPreview(att)">
+                            <div t-if="isImage(att)" class="mb-2 text-center" style="cursor: pointer;" t-on-click="() => this.onOpenPreview(att)">
                                 <img t-att-src="getImageUrl(att)" class="img-fluid" style="max-height: 100px;" alt="Preview"/>
                             </div>
                             <div t-elif="isPdf(att)" class="mb-2 text-center text-muted">
@@ -24,7 +24,7 @@
                             <div class="small text-truncate" t-att-title="att.name">
                                 <t t-esc="att.name"/>
                             </div>
-                            <button t-if="isImage(att)" class="btn btn-sm btn-outline-secondary mt-2 w-100" t-on-click="() => onOpenPreview(att)">
+                            <button t-if="isImage(att)" class="btn btn-sm btn-outline-secondary mt-2 w-100" t-on-click="() => this.onOpenPreview(att)">
                                 <i class="fa fa-eye me-1"/> Preview
                             </button>
                             <a t-elif="isPdf(att)" t-att-href="getPreviewUrl(att)" target="_blank" class="btn btn-sm btn-outline-secondary mt-2 w-100">

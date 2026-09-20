@@ -296,3 +296,13 @@
         padding: 1rem;
     }
 }
+
+.o-unified-pipeline-overlay {
+    .o-unified-pipeline-dropzone {
+        background-color: rgba(var(--o-color-primary-rgb), 0.04);
+    }
+
+    .o-unified-pipeline-lead {
+        box-shadow: 0 0.0625rem 0.125rem rgba(0, 0, 0, 0.08);
+    }
+}

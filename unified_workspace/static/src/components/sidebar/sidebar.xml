@@ -67,6 +67,14 @@
                     <i class="fa fa-calendar me-2"/>
                     Calendar
                 </div>
+                <div class="o-unified-sidebar-item px-2 py-1 rounded cursor-pointer" t-on-click="onOpenAgenda">
+                    <i class="fa fa-list-ul me-2"/>
+                    Agenda
+                </div>
+                <div class="o-unified-sidebar-item px-2 py-1 rounded cursor-pointer" t-on-click="onOpenPipeline">
+                    <i class="fa fa-tasks me-2"/>
+                    Pipeline
+                </div>
             </div>
 
             <div class="o-unified-sidebar-section mb-3">
@@ -91,7 +99,7 @@
                 <h6 class="px-2 text-muted text-uppercase small fw-bold mb-1">Today's Agenda</h6>
                 <div t-if="mailbox.agenda.length" class="px-2">
                     <t t-foreach="mailbox.agenda" t-as="event" t-key="event.id">
-                        <div class="o-unified-agenda-item small mb-1 cursor-pointer" t-on-click="() => onOpenEvent(event.id)">
+                        <div class="o-unified-agenda-item small mb-1 cursor-pointer" t-on-click="() => this.onOpenEvent(event.id)">
                             <div class="text-truncate fw-bold" t-esc="event.name"/>
                             <div class="text-muted">
                                 <span t-if="!event.allday" t-esc="formatTime(event.start)"/>

@@ -29,6 +29,7 @@ export class MailboxService extends Reactive {
             starred: false,
             attachments: false,
             important: false,
+            drafts: false,
         };
         this.agenda = [];
         this.channels = [];
@@ -161,6 +162,12 @@ export class MailboxService extends Reactive {
                 domain.unshift("&");
             }
             domain.push(["is_important", "=", true]);
+        }
+        if (this.filters.drafts) {
+            if (domain.length) {
+                domain.unshift("&");
+            }
+            domain.push(["state", "=", "draft"]);
         }
         return domain;
     }
@@ -466,7 +473,9 @@ export class MailboxService extends Reactive {
         }
 
         let defaultBody = "";
-        if (mode !== "forward") {
+        if (mode === "forward") {
+            defaultBody = await this.orm.call("mail.personal.mailbox", "action_get_forward_body", [[messageId]]);
+        } else {
             defaultBody = await this.orm.call("mail.personal.mailbox", "action_get_reply_body", [[messageId]]);
         }
 
@@ -563,6 +572,26 @@ export class MailboxService extends Reactive {
 
     async openCalendar() {
         this.setActivePanel("calendar");
+    }
+
+    async openAgenda() {
+        this.setActivePanel("agenda");
+        await this.loadAgenda();
+    }
+
+    openPipelineOverlay() {
+        // Rendera som panel, inte dialog: overlayn är en drop-yta och
+        // maillistan måste ligga kvar synlig och dragbar bredvid (2026-09-20).
+        this.setActivePanel("pipeline");
+    }
+
+    async moveToStage(messageId, stageId) {
+        await this.orm.call(
+            "mail.personal.mailbox",
+            "action_move_to_stage",
+            [[messageId], stageId]
+        );
+        await this.loadMessages();
     }
 
     async openGroupInbox() {

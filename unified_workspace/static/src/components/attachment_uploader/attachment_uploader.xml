@@ -20,7 +20,7 @@
                     <span class="badge bg-light text-dark border d-inline-flex align-items-center">
                         <i class="fa fa-file-o me-1"/>
                         <t t-esc="attachment.name"/>
-                        <button type="button" class="btn-close ms-1" style="font-size: 0.5rem;" t-on-click.stop="() => removeAttachment(attachment.id)"/>
+                        <button type="button" class="btn-close ms-1" style="font-size: 0.5rem;" t-on-click.stop="() => this.removeAttachment(attachment.id)"/>
                     </span>
                 </t>
             </div>
