@@ -7,7 +7,7 @@
             <t t-foreach="state.emails" t-as="email" t-key="email">
                 <span class="badge bg-primary d-inline-flex align-items-center">
                     <t t-esc="email"/>
-                    <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.5rem;" t-on-click.stop="() => removeEmail(email)"/>
+                    <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.5rem;" t-on-click.stop="() => this.removeEmail(email)"/>
                 </span>
             </t>
             <input
@@ -26,7 +26,7 @@
                 <t t-foreach="state.suggestions" t-as="suggestion" t-key="suggestion.id">
                     <button type="button" class="dropdown-item"
                         t-att-class="{ 'active': suggestion_index === state.selectedIndex }"
-                        t-on-mousedown.prevent="() => selectSuggestion(suggestion)">
+                        t-on-mousedown.prevent="() => this.selectSuggestion(suggestion)">
                         <span class="me-2" t-esc="suggestion.name"/>
                         <span class="text-muted small" t-esc="suggestion.email"/>
                     </button>

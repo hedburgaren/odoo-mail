@@ -18,7 +18,7 @@
                             class="o-unified-pipeline-column card flex-shrink-0 bg-light"
                             style="width: 240px;"
                             t-on-dragover.prevent="onDragOver"
-                            t-on-drop.prevent="(ev) => onDrop(ev, stage.id)">
+                            t-on-drop.prevent="(ev) => this.onDrop(ev, stage.id)">
                             <div class="card-header py-2 px-3 fw-bold">
                                 <t t-esc="stage.name"/>
                                 <span class="badge bg-secondary ms-1" t-esc="state.leadsByStage[stage.id].length"/>

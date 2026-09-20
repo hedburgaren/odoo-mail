@@ -100,7 +100,7 @@
                 <h6 class="px-2 text-muted text-uppercase small fw-bold mb-1">Today's Agenda</h6>
                 <div t-if="mailbox.agenda.length" class="px-2">
                     <t t-foreach="mailbox.agenda" t-as="event" t-key="event.id">
-                        <div class="o-unified-agenda-item small mb-1 cursor-pointer" t-on-click="() => onOpenEvent(event.id)">
+                        <div class="o-unified-agenda-item small mb-1 cursor-pointer" t-on-click="() => this.onOpenEvent(event.id)">
                             <div class="text-truncate fw-bold" t-esc="event.name"/>
                             <div class="text-muted">
                                 <span t-if="!event.allday" t-esc="formatTime(event.start)"/>
