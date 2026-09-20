@@ -33,16 +33,28 @@ class ResUsers(models.Model):
     )
 
     @api.model
-    def _get_personal_signature(self, partners=None):
-        """Return the signature to use for the given recipient partners."""
+    def _get_personal_signature(self, partners=None, signature_type="auto"):
+        """Return the signature to use for the given recipient partners.
+
+        signature_type kommer från composerns väljare: "internal" och
+        "external" tvingar ett val, "auto" låter mottagarna avgöra som
+        tidigare. Utan parametern var väljaren i composern ren dekoration
+        (granskning 2026-09-20).
+        """
         self.ensure_one()
+        internal = self.email_signature or self.signature or ""
+        external = self.email_signature_external or internal
+        if signature_type == "internal":
+            return internal
+        if signature_type == "external":
+            return external
         if not partners:
-            return self.email_signature or self.signature or ""
+            return internal
         internal_users = self.env["res.users"].search([
             ("partner_id", "in", partners.ids),
             ("share", "=", False),
             ("active", "=", True),
         ])
         if internal_users or not self.email_signature_external:
-            return self.email_signature or self.signature or ""
-        return self.email_signature_external or self.signature or ""
+            return internal
+        return external

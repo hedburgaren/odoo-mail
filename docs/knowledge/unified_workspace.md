@@ -85,15 +85,23 @@ and `.ics` attachments are parsed automatically.
 
 ### `mail.compose.message`
 
-Adds `composition_mode = "personal_email"` and, in `_save_sent_copy()`, saves
-a read copy of sent messages in the sender's Inbox (`state = "read"`), because
-Sent/Drafts/Trash are represented by message state rather than folders. The
-copy preserves To/CC/BCC, attachments and, for replies and forwards, the
-`parent_id` of the original message, which is marked `replied`/`forwarded`.
+Adds `composition_mode = "personal_email"`. Sending goes through
+`_action_send_personal_email()`, which builds the outgoing `mail.mail`
+directly. No copy is saved in the sender's Inbox: a mixed in- and outbox was
+confusing and Gmail already keeps outgoing mail in its own Sent folder
+(Chrille 2026-09-07). What `_save_sent_copy()` still does is move the original
+message to `replied`/`forwarded` and, when asked, log the email to another
+record's chatter.
+
+BCC is delivered as one separate `mail.mail` per hidden recipient. Odoo 18 CE
+has no `email_bcc` on `mail.mail`, and `email_cc` really is delivered to, so a
+single mail would either drop BCC silently or expose the hidden recipients to
+each other. The BCC copy carries neither To nor CC addresses.
 
 The composer calls the public `action_send_mail` method and passes To/CC/BCC
-partners and attachments so the sent copy keeps the full recipient list and
-attachments.
+partners, attachments and the chosen `signature_type`. `signature_type` is
+`auto` by default, which picks the internal or external signature from the
+recipients; `internal` and `external` force the choice.
 
 ## Security
 

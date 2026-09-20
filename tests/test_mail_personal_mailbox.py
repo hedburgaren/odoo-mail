@@ -597,15 +597,110 @@ class TestMailPersonalMailbox(TransactionCase):
         })
         with patch.object(type(self.env["mail.mail"]), "send", _no_send):
             composer._action_send_personal_email()
-        mail = self.env["mail.mail"].sudo().search(
-            [("subject", "=", "Hello")], order="id desc", limit=1
-        )
-        self.assertTrue(mail)
-        self.assertEqual(mail.recipient_ids, contact)
-        self.assertEqual(mail.email_cc, "cc@example.com")
+        mails = self.env["mail.mail"].sudo().search([("subject", "=", "Hello")])
+        main = mails.filtered(lambda m: m.recipient_ids == contact)
+        self.assertTrue(main)
+        self.assertEqual(main.email_cc, "cc@example.com")
         self.assertFalse(
             self.env["mail.personal.mailbox"].search_count([("name", "=", "Hello")])
         )
+
+    def test_outgoing_mail_delivers_bcc_blind(self):
+        """BCC ska faktiskt levereras, och utan att röja de dolda mottagarna."""
+        env = self.env.user.with_user(self.user).env
+        contact = env["res.partner"].create({
+            "name": "Jane Doe",
+            "email": "jane.doe@example.com",
+        })
+        hidden = env["res.partner"].create({
+            "name": "Hidden One",
+            "email": "hidden@example.com",
+        })
+        composer = self.env["mail.compose.message"].create({
+            "composition_mode": "personal_email",
+            "subject": "Blind copy",
+            "body": "<p>Test</p>",
+            "partner_ids": [(6, 0, (contact | hidden).ids)],
+            "email_cc": "cc@example.com",
+            "email_bcc": "hidden@example.com, loose@example.com",
+        })
+        with patch.object(type(self.env["mail.mail"]), "send", _no_send):
+            composer._action_send_personal_email()
+        mails = self.env["mail.mail"].sudo().search([("subject", "=", "Blind copy")])
+        self.assertEqual(len(mails), 3)
+        main = mails.filtered(lambda m: m.recipient_ids == contact)
+        self.assertEqual(len(main), 1)
+        self.assertEqual(main.email_cc, "cc@example.com")
+        partner_bcc = mails.filtered(lambda m: m.recipient_ids == hidden)
+        self.assertEqual(len(partner_bcc), 1)
+        self.assertFalse(partner_bcc.email_cc)
+        loose_bcc = mails.filtered(lambda m: m.email_to == "loose@example.com")
+        self.assertEqual(len(loose_bcc), 1)
+        self.assertFalse(loose_bcc.recipient_ids)
+        self.assertFalse(loose_bcc.email_cc)
+
+    def test_outgoing_mail_bcc_only_is_sent(self):
+        """Enbart BCC ifyllt ska skicka, inte kasta No recipient found."""
+        env = self.env.user.with_user(self.user).env
+        hidden = env["res.partner"].create({
+            "name": "Hidden Only",
+            "email": "hidden.only@example.com",
+        })
+        composer = self.env["mail.compose.message"].create({
+            "composition_mode": "personal_email",
+            "subject": "Only blind",
+            "body": "<p>Test</p>",
+            "partner_ids": [(6, 0, hidden.ids)],
+            "email_bcc": "hidden.only@example.com",
+        })
+        with patch.object(type(self.env["mail.mail"]), "send", _no_send):
+            composer._action_send_personal_email()
+        mails = self.env["mail.mail"].sudo().search([("subject", "=", "Only blind")])
+        self.assertEqual(len(mails), 1)
+        self.assertEqual(mails.recipient_ids, hidden)
+
+    def test_signature_type_is_respected(self):
+        """Väljaren i composern ska styra signaturen, inte bara mottagarna."""
+        self.user.write({
+            "email_signature": "<p>Internal sig</p>",
+            "email_signature_external": "<p>External sig</p>",
+        })
+        external_contact = self.env["res.partner"].create({
+            "name": "Outsider",
+            "email": "outsider@example.com",
+        })
+        base = {
+            "composition_mode": "personal_email",
+            "subject": "Sig",
+            "body": "<p>Test</p>",
+            "partner_ids": [(6, 0, external_contact.ids)],
+        }
+        composer = self.env["mail.compose.message"].with_user(self.user).create(base)
+        self.assertEqual(composer.signature_type, "auto")
+        self.assertIn("External sig", composer._ensure_signature("<p>Test</p>"))
+
+        forced_internal = self.env["mail.compose.message"].with_user(self.user).create(
+            dict(base, signature_type="internal")
+        )
+        body = forced_internal._ensure_signature("<p>Test</p>")
+        self.assertIn("Internal sig", body)
+        self.assertNotIn("External sig", body)
+
+        internal_partner = self.env["res.partner"].create({
+            "name": "Colleague",
+            "email": "colleague@example.com",
+        })
+        self.env["res.users"].create({
+            "name": "Colleague",
+            "login": "colleague_sig_user",
+            "partner_id": internal_partner.id,
+        })
+        forced_external = self.env["mail.compose.message"].with_user(self.user).create(
+            dict(base, partner_ids=[(6, 0, internal_partner.ids)], signature_type="external")
+        )
+        body = forced_external._ensure_signature("<p>Test</p>")
+        self.assertIn("External sig", body)
+        self.assertNotIn("Internal sig", body)
 
     def test_toggle_important(self):
         env = self.env.user.with_user(self.user).env
