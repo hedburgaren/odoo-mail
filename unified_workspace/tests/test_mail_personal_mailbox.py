@@ -34,6 +34,12 @@ ICS_INVITATION_RESCHEDULED = ICS_INVITATION.replace(
 )
 
 
+def _no_send(self, *args, **kwargs):
+    """Neutralisera mail.mail.send i test: auto_delete raderar annars posten
+    innan assertions hinner läsa den."""
+    return True
+
+
 class TestMailPersonalMailbox(TransactionCase):
 
     @classmethod
