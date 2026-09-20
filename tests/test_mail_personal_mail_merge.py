@@ -59,7 +59,7 @@ class TestMailPersonalMailMerge(TransactionCase):
         rendered = wizard._render_html("<p>Hello {{name}}</p>", partner)
         self.assertIn("Hello Eve &lt;evil&gt;", rendered)
 
-    def test_action_send_creates_sent_copies(self):
+    def test_action_send_creates_no_sent_copies(self):
         inbox = self.env["mail.personal.folder"]._get_system_folder(
             self.env.user, "inbox"
         )
@@ -79,7 +79,8 @@ class TestMailPersonalMailMerge(TransactionCase):
             ("user_id", "=", self.env.user.id),
             ("state", "=", "read"),
         ])
-        self.assertEqual(after - before, 2)
+        # Ingen inkorgskopia av utgående (Chrille 2026-09-07, c8714d8).
+        self.assertEqual(after - before, 0)
         self.assertEqual(action["type"], "ir.actions.client")
         self.assertIn("2 email(s) sent", action["params"]["message"])
 
@@ -103,7 +104,7 @@ class TestMailPersonalMailMerge(TransactionCase):
             ("user_id", "=", self.env.user.id),
             ("state", "=", "read"),
         ])
-        self.assertEqual(after - before, 1)
+        self.assertEqual(after - before, 0)
         self.assertIn("1 contact(s) skipped", action["params"]["message"])
 
     def test_default_get_from_active_ids(self):

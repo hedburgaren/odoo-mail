@@ -5,6 +5,8 @@ import base64
 from datetime import timedelta
 
 from odoo import fields
+from unittest.mock import patch
+
 from odoo.tests.common import TransactionCase
 from odoo.exceptions import UserError, ValidationError
 
@@ -26,6 +28,12 @@ ATTENDEE:mailto:attendee2@example.com
 END:VEVENT
 END:VCALENDAR
 """
+
+
+def _no_send(self, *args, **kwargs):
+    """Neutralisera mail.mail.send i test: auto_delete raderar annars posten
+    innan assertions hinner läsa den."""
+    return True
 
 
 class TestMailPersonalMailbox(TransactionCase):
@@ -152,7 +160,7 @@ class TestMailPersonalMailbox(TransactionCase):
         self.assertEqual(message.calendar_rsvp_state, "declined")
         self.assertEqual(attendee.state, "declined")
 
-    def test_save_sent_copy_with_attachment(self):
+    def test_send_creates_no_inbox_copy(self):
         partner = self.env["res.partner"].create({
             "name": "Recipient",
             "email": "recipient@example.com",
@@ -173,14 +181,21 @@ class TestMailPersonalMailbox(TransactionCase):
             "email_cc": "cc@example.com",
             "attachment_ids": [(6, 0, attachment.ids)],
         })
-        mailbox_message = composer._save_sent_copy()
-        self.assertTrue(mailbox_message)
-        self.assertEqual(mailbox_message.folder_id.folder_type, "inbox")
-        self.assertEqual(mailbox_message.state, "read")
-        self.assertIn("recipient@example.com", mailbox_message.email_to)
-        self.assertIn("cc@example.com", mailbox_message.email_cc)
-        self.assertEqual(len(mailbox_message.attachment_ids), 1)
-        self.assertEqual(mailbox_message.attachment_ids.name, "test.txt")
+        before = self.env["mail.personal.mailbox"].search_count([("user_id", "=", self.env.user.id)])
+        with patch.object(type(self.env["mail.mail"]), "send", _no_send):
+            composer._action_send_personal_email()
+        composer._save_sent_copy()
+        after = self.env["mail.personal.mailbox"].search_count([("user_id", "=", self.env.user.id)])
+        # Chrille 2026-09-07 (c8714d8): utgående mail ska inte hamna i inkorgen.
+        self.assertEqual(before, after)
+        mail = self.env["mail.mail"].sudo().search(
+            [("subject", "=", "Sent subject")], order="id desc", limit=1
+        )
+        self.assertTrue(mail)
+        self.assertIn(partner, mail.recipient_ids)
+        self.assertNotIn(cc_partner, mail.recipient_ids)
+        self.assertIn("cc@example.com", mail.email_cc)
+        self.assertEqual(mail.attachment_ids.name, "test.txt")
 
     def test_personal_template(self):
         template = self.env["mail.personal.template"].create({
@@ -449,7 +464,7 @@ class TestMailPersonalMailbox(TransactionCase):
         with self.assertRaises(UserError):
             message.action_move_to_stage(99999999)
 
-    def test_sent_copy_links_parent_on_reply(self):
+    def test_reply_marks_original_replied(self):
         partner = self.env["res.partner"].create({
             "name": "Recipient",
             "email": "recipient@example.com",
@@ -467,9 +482,18 @@ class TestMailPersonalMailbox(TransactionCase):
             "partner_ids": [(6, 0, partner.ids)],
             "personal_mailbox_id": original.id,
         })
-        sent = composer._save_sent_copy()
-        self.assertEqual(sent.parent_id, original)
+        self.assertIsNone(composer._save_sent_copy())
         self.assertEqual(original.state, "replied")
+
+        forward = self.env["mail.compose.message"].create({
+            "composition_mode": "personal_email",
+            "subject": "Fwd: Original",
+            "body": "<p>Forward</p>",
+            "partner_ids": [(6, 0, partner.ids)],
+            "personal_mailbox_id": original.id,
+        })
+        forward._save_sent_copy()
+        self.assertEqual(original.state, "forwarded")
 
     def test_timer_start_stop(self):
         message = self.env["mail.personal.mailbox"].create({
@@ -552,7 +576,7 @@ class TestMailPersonalMailbox(TransactionCase):
         self.assertEqual(agenda[0]["id"], event.id)
         self.assertEqual(agenda[0]["name"], "Team standup")
 
-    def test_save_sent_copy_with_cc_bcc_and_company(self):
+    def test_outgoing_mail_splits_to_and_cc(self):
         env = self.env.user.with_user(self.user).env
         company = env["res.partner"].create({
             "name": "Acme Corp",
@@ -571,12 +595,17 @@ class TestMailPersonalMailbox(TransactionCase):
             "email_cc": "cc@example.com",
             "email_bcc": "bcc@example.com",
         })
-        mailbox_message = composer._save_sent_copy()
-        self.assertEqual(mailbox_message.email_to, "jane.doe@example.com")
-        self.assertEqual(mailbox_message.email_cc, "cc@example.com")
-        self.assertEqual(mailbox_message.email_bcc, "bcc@example.com")
-        self.assertEqual(mailbox_message.folder_id.folder_type, "inbox")
-        self.assertEqual(mailbox_message.state, "read")
+        with patch.object(type(self.env["mail.mail"]), "send", _no_send):
+            composer._action_send_personal_email()
+        mail = self.env["mail.mail"].sudo().search(
+            [("subject", "=", "Hello")], order="id desc", limit=1
+        )
+        self.assertTrue(mail)
+        self.assertEqual(mail.recipient_ids, contact)
+        self.assertEqual(mail.email_cc, "cc@example.com")
+        self.assertFalse(
+            self.env["mail.personal.mailbox"].search_count([("name", "=", "Hello")])
+        )
 
     def test_toggle_important(self):
         env = self.env.user.with_user(self.user).env
@@ -606,8 +635,7 @@ class TestMailPersonalMailbox(TransactionCase):
             "log_to_model": "crm.lead",
             "log_to_res_id": lead.id,
         })
-        mailbox_message = composer._save_sent_copy()
-        self.assertTrue(mailbox_message)
+        composer._save_sent_copy()
         chatter_message = env["mail.message"].search([
             ("model", "=", "crm.lead"),
             ("res_id", "=", lead.id),
@@ -632,13 +660,11 @@ class TestMailPersonalMailbox(TransactionCase):
         env["mail.personal.scheduled.message"]._cron_send_due_messages()
         scheduled.invalidate_recordset()
         self.assertEqual(scheduled.state, "sent")
-        sent_mail = env["mail.personal.mailbox"].search([
+        # Ingen inkorgskopia av utgående (Chrille 2026-09-07, c8714d8).
+        self.assertFalse(env["mail.personal.mailbox"].search_count([
             ("user_id", "=", self.user.id),
             ("name", "=", "Scheduled hello"),
-        ], limit=1)
-        self.assertTrue(sent_mail)
-        self.assertEqual(sent_mail.folder_id.folder_type, "inbox")
-        self.assertEqual(sent_mail.state, "read")
+        ]))
 
     def test_auto_archive_old_emails(self):
         Icp = self.env["ir.config_parameter"].sudo()
