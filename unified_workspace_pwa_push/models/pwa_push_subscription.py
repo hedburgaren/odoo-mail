@@ -83,7 +83,18 @@ class PwaPushSubscription(models.Model):
 
     @api.model
     def subscribe(self, partner_id, endpoint, p256dh, auth, user_id=None):
-        existing = self.search([("endpoint", "=", endpoint)], limit=1)
+        """Skapa eller återuppliva prenumerationen för endpointen.
+
+        Sökningen måste köras med ``active_test=False``. Modellen har ett
+        ``active``-fält, så en vanlig ``search`` ser aldrig rader som
+        ``unsubscribe`` har avaktiverat. Utan flaggan hittas den befintliga
+        raden inte, ``create`` körs, och unikhetsvillkoret ``endpoint_unique``
+        fäller anropet med ett felmeddelande till användaren. Det var det som
+        hände 2026-09-22 07:41:44: fyra avaktiverade rader låg kvar i
+        tabellen, osynliga för den filtrerade sökningen.
+        """
+        existing = self.with_context(active_test=False).search(
+            [("endpoint", "=", endpoint)], limit=1)
         if existing:
             existing.write({
                 "partner_id": partner_id,
@@ -104,7 +115,8 @@ class PwaPushSubscription(models.Model):
 
     @api.model
     def unsubscribe(self, endpoint):
-        sub = self.search([("endpoint", "=", endpoint)], limit=1)
+        sub = self.with_context(active_test=False).search(
+            [("endpoint", "=", endpoint)], limit=1)
         if sub:
             sub.active = False
         return bool(sub)
