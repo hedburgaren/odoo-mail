@@ -34,20 +34,10 @@ class MailThread(models.AbstractModel):
             # inkorgen: trådens chatter och notiser uteblev (Magdalena/RFQ-00005,
             # 2026-09-07). Kör ordinarie routing också, men ENDAST vid säker
             # trådmatchning så att bounce-vägen aldrig kan nås.
-            if self._has_thread_match(msg):
-                try:
-                    super().message_process(
-                        model, message,
-                        custom_values=custom_values,
-                        save_original=save_original,
-                        strip_attachments=strip_attachments,
-                        thread_id=thread_id,
-                    )
-                except Exception:
-                    _logger.exception(
-                        "Thread routing after personal delivery failed for %s",
-                        msg.get("message-id"),
-                    )
+            self._route_matched_thread(
+                msg, model, message, custom_values, save_original,
+                strip_attachments, thread_id,
+            )
             return record_id
         catchall_user = self._match_catchall_fallback_user(to_addresses)
         if catchall_user:
@@ -57,7 +47,17 @@ class MailThread(models.AbstractModel):
             # IMAP-omhämtning (Seen-flaggan fastnar inte hos Gmail) och en
             # kund fick 24 studsar på ett svar (2026-09-07). Routa istället
             # till direktörens inkorg; Message-ID-dedupen gör det idempotent.
-            return self._create_personal_mailbox_message(catchall_user, msg, message)
+            record_id = self._create_personal_mailbox_message(catchall_user, msg, message)
+            # Ett svar som trådmatchar ska ändå till sin tråd. Kunder som
+            # svarar på en offert skriver till catchall (reply-to), och utan
+            # det här steget nådde deras svar aldrig offertens chatter:
+            # 15 svar fastnade i inkorgen 2026-09-07 till 2026-09-23, bl.a.
+            # OF-2879. Trådmatchningen gör att bounce-vägen inte kan nås.
+            self._route_matched_thread(
+                msg, model, message, custom_values, save_original,
+                strip_attachments, thread_id,
+            )
+            return record_id
         return super().message_process(
             model, message,
             custom_values=custom_values,
@@ -65,6 +65,35 @@ class MailThread(models.AbstractModel):
             strip_attachments=strip_attachments,
             thread_id=thread_id,
         )
+
+    @api.model
+    def _route_matched_thread(self, msg, model, message, custom_values,
+                              save_original, strip_attachments, thread_id):
+        """Run native routing as well, but only on a safe thread match.
+
+        Without a References/In-Reply-To hit, native routing may end in the
+        bounce path, which is exactly what the personal delivery avoids. The
+        savepoint keeps a failing route from aborting the transaction that
+        already holds the inbox copy.
+        """
+        if not self._has_thread_match(msg):
+            return False
+        try:
+            with self.env.cr.savepoint():
+                super().message_process(
+                    model, message,
+                    custom_values=custom_values,
+                    save_original=save_original,
+                    strip_attachments=strip_attachments,
+                    thread_id=thread_id,
+                )
+            return True
+        except Exception:
+            _logger.exception(
+                "Thread routing after personal delivery failed for %s",
+                msg.get("message-id"),
+            )
+            return False
 
     @api.model
     def _has_thread_match(self, msg):
