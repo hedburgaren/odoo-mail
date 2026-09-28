@@ -27,9 +27,34 @@ class MailNotification(models.Model):
                 notif._schedule_push()
         return result
 
+    @api.model
+    def _push_enabled_on_this_instance(self):
+        """Får den här instansen skicka push till en riktig telefon?
+
+        En stagingklon ärver produktionens prenumerationer, och prenumerationen
+        pekar på Chrilles faktiska enhet. Den 2026-09-14 aktiverades två workers
+        på staging och arbetade av en backlog; 300 chatterposter på arc.case
+        blev omkring 250 pushnotiser som låg och väntade tills webbläsaren
+        öppnades nästa morgon. Inget mail lämnade klonen, för staging har en
+        svarthåls-SMTP. Push hade ingen motsvarande spärr.
+
+        Grinden är samma nyckel som arc_ai_worker använder, med flit. Två
+        switchar för samma fråga betyder att någon glömmer den ena, och den
+        här nyckeln är redan satt på staging. Saknas nyckeln (modulen inte
+        installerad) är default True, alltså oförändrat beteende.
+
+        Att avaktivera prenumerationsraderna räcker inte: de kommer tillbaka
+        med nästa klon från produktionen.
+        """
+        param = self.env["ir.config_parameter"].sudo().get_param(
+            "arc_ai_worker.notifications_enabled", "True")
+        return str(param).strip().lower() not in ("false", "0", "no", "off")
+
     def _schedule_push(self):
         """Skicka push till mottagaren om status är sent."""
         self.ensure_one()
+        if not self._push_enabled_on_this_instance():
+            return
         if not self.res_partner_id:
             return
         if self.notification_status != "sent":
